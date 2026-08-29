@@ -1,0 +1,311 @@
+import React, { useState } from 'react';
+import { 
+  Activity, 
+  Sparkles, 
+  AlertOctagon, 
+  Bell, 
+  PhoneCall, 
+  ChevronDown, 
+  Menu, 
+  X, 
+  ShieldAlert,
+  Hospital,
+  MapPin,
+  Clock,
+  Navigation,
+  FileText,
+  Lock,
+  BarChart3,
+  Truck,
+  User
+} from 'lucide-react';
+import { useApp } from '../context/AppContext';
+import { UserRole } from '../types/user';
+import { NotificationDrawer } from './NotificationDrawer';
+
+interface NavbarProps {
+  currentPath: string;
+  navigate: (path: string) => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
+  const { 
+    currentUser, 
+    setUserRole, 
+    triggerSIHDemoMode, 
+    simulateHospitalBecomingFull, 
+    notifications 
+  } = useApp();
+
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
+  const [isEmergencyCallModalOpen, setIsEmergencyCallModalOpen] = useState(false);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  const navLinks = [
+    { label: 'Home', path: '/', icon: Activity },
+    { label: 'Emergency Prioritization', path: '/assessment', icon: ShieldAlert },
+    { label: 'Find Hospital', path: '/finder', icon: Hospital },
+    { label: 'Live Queue', path: '/queue', icon: Clock },
+    { label: 'My Journey', path: '/journey', icon: Navigation },
+    { label: 'Command Center', path: '/command-center', icon: BarChart3 },
+    { label: 'Ambulances', path: '/ambulances', icon: Truck },
+    { label: 'System Insights', path: '/insights', icon: Sparkles },
+    { label: 'Privacy & Safety', path: '/privacy', icon: Lock }
+  ];
+
+  const handleRoleSelect = (role: UserRole) => {
+    setUserRole(role);
+    setIsRoleDropdownOpen(false);
+  };
+
+  const handleNavClick = (path: string) => {
+    navigate(path);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleDemoClick = () => {
+    triggerSIHDemoMode();
+    navigate('/assessment-result');
+  };
+
+  return (
+    <>
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16 gap-2">
+            {/* Logo */}
+            <div className="flex items-center gap-3 cursor-pointer shrink-0" onClick={() => handleNavClick('/')}>
+              <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-sky-500 text-white shadow-md shadow-brand-500/30">
+                <Activity className="w-5 h-5 animate-pulse" />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                </span>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="font-extrabold text-lg text-slate-900 tracking-tight">MediFlow</span>
+                  <span className="px-1.5 py-0.5 bg-brand-100 text-brand-700 text-[10px] font-extrabold rounded-md uppercase tracking-wider">
+                    AI
+                  </span>
+                </div>
+                <div className="text-[10px] text-slate-500 font-medium tracking-tight -mt-0.5">
+                  Smart Hospital Queue & Emergency Routing
+                </div>
+              </div>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <nav className="hidden xl:flex items-center gap-1">
+              {navLinks.map((link) => {
+                const isActive = currentPath === link.path;
+                return (
+                  <button
+                    key={link.path}
+                    onClick={() => handleNavClick(link.path)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      isActive
+                        ? 'bg-brand-50 text-brand-700 font-bold border border-brand-200/60 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
+                    }`}
+                  >
+                    {link.label}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* Right Action Bar */}
+            <div className="flex items-center gap-2">
+              {/* SIH Golden Demo Mode Button */}
+              <button
+                onClick={handleDemoClick}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-500/25 transition transform active:scale-95 animate-pulse-slow shrink-0"
+                title="Run complete 2-minute golden emergency workflow for SIH judges"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">⚡ SIH Demo Mode</span>
+                <span className="sm:hidden">⚡ Demo</span>
+              </button>
+
+              {/* Dynamic Capacity Crash Button */}
+              <button
+                onClick={() => simulateHospitalBecomingFull('hosp-citycare')}
+                className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl text-xs font-semibold transition shrink-0"
+                title="Simulate primary hospital reaching capacity to demonstrate automated dynamic rerouting"
+              >
+                <AlertOctagon className="w-3.5 h-3.5 text-red-600" />
+                <span className="hidden lg:inline">Simulate Full ER</span>
+              </button>
+
+              {/* Role Switcher */}
+              <div className="relative hidden sm:block">
+                <button
+                  onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition"
+                >
+                  <User className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="capitalize text-[11px] max-w-[90px] truncate">{currentUser.role.replace('_', ' ')}</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                {isRoleDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-fade-in">
+                    <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
+                      Switch Demo Perspective
+                    </div>
+                    <button
+                      onClick={() => handleRoleSelect('patient')}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'patient' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
+                    >
+                      <span>👤 Patient / Caregiver</span>
+                      {currentUser.role === 'patient' && <span className="text-[10px] text-brand-600">Active</span>}
+                    </button>
+                    <button
+                      onClick={() => handleRoleSelect('hospital_staff')}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'hospital_staff' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
+                    >
+                      <span>🩺 ER Doctor / Triage Nurse</span>
+                      {currentUser.role === 'hospital_staff' && <span className="text-[10px] text-brand-600">Active</span>}
+                    </button>
+                    <button
+                      onClick={() => handleRoleSelect('paramedic')}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'paramedic' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
+                    >
+                      <span>🚑 EMS Paramedic</span>
+                      {currentUser.role === 'paramedic' && <span className="text-[10px] text-brand-600">Active</span>}
+                    </button>
+                    <button
+                      onClick={() => handleRoleSelect('admin')}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'admin' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
+                    >
+                      <span>🏢 Hospital Admin / Director</span>
+                      {currentUser.role === 'admin' && <span className="text-[10px] text-brand-600">Active</span>}
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Notification Bell */}
+              <button
+                onClick={() => setIsNotificationDrawerOpen(true)}
+                className="relative p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition"
+                title="System Notifications"
+              >
+                <Bell className="w-4 h-4" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center bg-red-500 text-white rounded-full text-[9px] font-bold">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Emergency SOS Button */}
+              <button
+                onClick={() => setIsEmergencyCallModalOpen(true)}
+                className="flex items-center gap-1 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-md shadow-red-600/20 transition transform active:scale-95"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">SOS 112</span>
+              </button>
+
+              {/* Mobile Menu Toggle */}
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="xl:hidden p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl"
+              >
+                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Navigation Drawer */}
+        {isMobileMenuOpen && (
+          <div className="xl:hidden border-t border-slate-200 bg-white px-4 py-3 space-y-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const isActive = currentPath === link.path;
+              return (
+                <button
+                  key={link.path}
+                  onClick={() => handleNavClick(link.path)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition ${
+                    isActive
+                      ? 'bg-brand-50 text-brand-700 font-bold'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="w-4 h-4 text-slate-500" />
+                  <span>{link.label}</span>
+                </button>
+              );
+            })}
+            
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+              <button
+                onClick={() => simulateHospitalBecomingFull('hosp-citycare')}
+                className="w-full flex items-center justify-center gap-2 p-2 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200"
+              >
+                <AlertOctagon className="w-4 h-4" />
+                Simulate Full ER (Auto-Reroute)
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* Notifications Drawer */}
+      <NotificationDrawer
+        isOpen={isNotificationDrawerOpen}
+        onClose={() => setIsNotificationDrawerOpen(false)}
+      />
+
+      {/* Emergency Call Quick Modal */}
+      {isEmergencyCallModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-red-200 space-y-4">
+            <div className="flex items-center gap-3 text-red-600">
+              <div className="p-3 bg-red-100 rounded-xl">
+                <PhoneCall className="w-6 h-6 animate-bounce" />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-900">Emergency Services Dispatch</h3>
+                <p className="text-xs text-slate-500">Immediate Direct Calling Service</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              If you or someone nearby is experiencing a life-threatening emergency (such as cardiac arrest, severe trauma, or acute breathing cessation), contact emergency response immediately.
+            </p>
+
+            <div className="space-y-2">
+              <a
+                href="tel:112"
+                className="w-full flex items-center justify-center gap-2 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-red-600/30 transition"
+              >
+                <PhoneCall className="w-4 h-4" /> Call National Emergency (112)
+              </a>
+              <a
+                href="tel:108"
+                className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs shadow-md transition"
+              >
+                <PhoneCall className="w-4 h-4" /> Call National Ambulance (108)
+              </a>
+            </div>
+
+            <button
+              onClick={() => setIsEmergencyCallModalOpen(false)}
+              className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-slate-800 transition text-center"
+            >
+              Cancel / Return to MediFlow AI
+            </button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
