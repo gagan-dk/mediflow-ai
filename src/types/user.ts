@@ -8,4 +8,16 @@ export interface UserProfile {
   hospitalName?: string;
   badgeNumber?: string;
   email: string;
+  avatarInitials?: string;
+}
+
+export interface DemoCredential {
+  email: string;
+  password: string;
+  role: UserRole;
+  name: string;
+  hospitalId?: string;
+  hospitalName?: string;
+  badgeNumber?: string;
+  description: string;
 }

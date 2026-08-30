@@ -22,6 +22,35 @@ import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
 
+// ─── Demo credentials for prototype authentication ────────────────────────────
+const DEMO_CREDENTIALS: Array<{
+  email: string; password: string; role: UserRole;
+  name: string; hospitalId?: string; hospitalName?: string; badgeNumber?: string;
+}> = [
+  {
+    email: 'patient@mediflow.ai',
+    password: 'patient123',
+    role: 'patient',
+    name: 'Rohan Verma',
+  },
+  {
+    email: 'staff@mediflow.ai',
+    password: 'staff123',
+    role: 'hospital_staff',
+    name: 'Dr. Priya Rao',
+    hospitalId: 'hosp-citycare',
+    hospitalName: 'CityCare Medical Center',
+    badgeNumber: 'ER-7701',
+  },
+  {
+    email: 'admin@mediflow.ai',
+    password: 'admin123',
+    role: 'admin',
+    name: 'Director S. Menon',
+    badgeNumber: 'ADMIN-001',
+  },
+];
+
 export type JourneyStage = 
   | 'idle'
   | 'assessed'
@@ -41,6 +70,11 @@ interface RerouteEventData {
 }
 
 interface AppContextType {
+  // Authentication
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => { success: boolean; error?: string; role?: UserRole };
+  logout: () => void;
+
   // User & Role
   currentUser: UserProfile;
   setUserRole: (role: UserRole) => void;
@@ -109,6 +143,9 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
   // Role & User
   const [currentUser, setCurrentUser] = useState<UserProfile>({
     id: 'usr-1',
@@ -227,6 +264,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const rankedHospitals = React.useMemo(() => {
     return rankHospitalsForPatient(hospitals, assessmentResult);
   }, [hospitals, assessmentResult]);
+
+  // ─── Authentication ──────────────────────────────────────────────────────
+  const login = (email: string, password: string): { success: boolean; error?: string; role?: UserRole } => {
+    const cred = DEMO_CREDENTIALS.find(
+      c => c.email.toLowerCase() === email.toLowerCase() && c.password === password
+    );
+    if (!cred) {
+      return { success: false, error: 'Invalid email or password. Please check your credentials.' };
+    }
+    setCurrentUser({
+      id: `usr-${cred.role}`,
+      name: cred.name,
+      role: cred.role,
+      hospitalId: cred.hospitalId,
+      hospitalName: cred.hospitalName,
+      badgeNumber: cred.badgeNumber,
+      email: cred.email,
+      avatarInitials: cred.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
+    });
+    setIsAuthenticated(true);
+    soundFX.playChime();
+    return { success: true, role: cred.role };
+  };
+
+  const logout = () => {
+    setIsAuthenticated(false);
+    setCurrentUser({
+      id: 'usr-guest',
+      name: 'Guest',
+      role: 'patient',
+      email: 'guest@mediflow.ai',
+    });
+    // Reset session state
+    setAssessmentResult(null);
+    setCurrentAssessmentInput(null);
+    setMyQueueToken(null);
+    setJourneyStage('idle');
+  };
 
   const setUserRole = (role: UserRole) => {
     let name = 'Demo User';
@@ -687,6 +762,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider
       value={{
+        isAuthenticated,
+        login,
+        logout,
         currentUser,
         setUserRole,
         userLiveLocation,

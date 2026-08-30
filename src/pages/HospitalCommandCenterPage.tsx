@@ -53,8 +53,14 @@ export const HospitalCommandCenterPage: React.FC = () => {
     ambulances 
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'pre_alerts' | 'queue' | 'beds' | 'analytics'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'queue' | 'beds' | 'analytics'>('overview');
   const [selectedPreAlertForModal, setSelectedPreAlertForModal] = useState<HospitalPreAlert | null>(null);
+
+  // RBAC: only hospital_staff and admin can manage pre-alerts
+  const canManagePreAlerts = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
+
+  // RBAC: only hospital_staff and admin can manage queue and beds
+  const canManageOperations = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
 
   const primaryHospital = hospitals[0]; // CityCare
 
@@ -118,19 +124,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
           >
             Overview
           </button>
-          <button
-            onClick={() => setActiveTab('pre_alerts')}
-            className={`px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 ${
-              activeTab === 'pre_alerts' ? 'bg-red-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <span>Pre-Alerts</span>
-            {preAlerts.length > 0 && (
-              <span className="px-1.5 py-0.2 bg-white/30 text-white rounded text-[10px] font-bold">
-                {preAlerts.length}
-              </span>
-            )}
-          </button>
+
           <button
             onClick={() => setActiveTab('queue')}
             className={`px-3.5 py-1.5 rounded-xl transition ${
@@ -269,8 +263,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
       </div>
 
       {/* Main Section Content depending on active tab */}
-      {/* 1. Pre-Alerts Tab / Section */}
-      {(activeTab === 'overview' || activeTab === 'pre_alerts') && (
+      {/* 1. Pre-Alerts Tab / Section — only visible to hospital staff and admin */}
+      {canManagePreAlerts && activeTab === 'overview' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
@@ -358,18 +352,20 @@ export const HospitalCommandCenterPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions — Manage Preparation only for staff/admin */}
                   <div className="flex items-center justify-between pt-2">
                     <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
                       Status: <span className="text-brand-600 font-medium">{pa.status}</span>
                     </span>
 
-                    <button
-                      onClick={() => setSelectedPreAlertForModal(pa)}
-                      className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
-                    >
-                      Manage Preparation
-                    </button>
+                    {canManagePreAlerts && (
+                      <button
+                        onClick={() => setSelectedPreAlertForModal(pa)}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl shadow-xs transition"
+                      >
+                        Manage Preparation
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -378,6 +374,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
         </div>
       )}
 
+
+
+
+
       {/* 2. Emergency Queue Management Table */}
       {(activeTab === 'overview' || activeTab === 'queue') && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -385,7 +385,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Emergency Department Active Triage Queue</h3>
               <p className="text-xs text-slate-500">
-                Staff controls for advancing patient care workflows and room assignment.
+                {canManageOperations ? 'Staff controls for advancing patient care workflows and room assignment.' : 'View-only access to current queue status.'}
               </p>
             </div>
             <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-mono font-semibold">
@@ -404,7 +404,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
                   <th className="pb-2.5">Wait</th>
                   <th className="pb-2.5">Status</th>
                   <th className="pb-2.5">Doctor Assigned</th>
-                  <th className="pb-2.5 text-right">Workflow Actions</th>
+                  {canManageOperations && <th className="pb-2.5 text-right">Workflow Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -434,39 +434,53 @@ export const HospitalCommandCenterPage: React.FC = () => {
                       {patient.estimatedWaitMinutes}m
                     </td>
                     <td className="py-3">
-                      <select
-                        value={patient.status}
-                        onChange={(e) => updateQueuePatientStatus(patient.id, e.target.value as QueueStatus)}
-                        className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-medium focus:outline-none"
-                      >
-                        <option value="Waiting">Waiting</option>
-                        <option value="Under Assessment">Under Assessment</option>
-                        <option value="Treatment">Treatment</option>
-                        <option value="Admitted">Admitted</option>
-                        <option value="Discharged">Discharged</option>
-                      </select>
+                      {canManageOperations ? (
+                        <select
+                          value={patient.status}
+                          onChange={(e) => updateQueuePatientStatus(patient.id, e.target.value as QueueStatus)}
+                          className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-medium focus:outline-none"
+                        >
+                          <option value="Waiting">Waiting</option>
+                          <option value="Under Assessment">Under Assessment</option>
+                          <option value="Treatment">Treatment</option>
+                          <option value="Admitted">Admitted</option>
+                          <option value="Discharged">Discharged</option>
+                        </select>
+                      ) : (
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          patient.status === 'Waiting' ? 'bg-slate-100 text-slate-700' :
+                          patient.status === 'Under Assessment' ? 'bg-amber-100 text-amber-800' :
+                          patient.status === 'Treatment' ? 'bg-brand-100 text-brand-800' :
+                          patient.status === 'Admitted' ? 'bg-emerald-100 text-emerald-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {patient.status}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 text-slate-700">
                       {patient.assignedDoctor || 'Unassigned'}
                     </td>
-                    <td className="py-3 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => updateQueuePatientStatus(patient.id, 'Treatment', 'Dr. Priya Rao', 'Resus Bay 1')}
-                          className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
-                          title="Move to Treatment"
-                        >
-                          Treat
-                        </button>
-                        <button
-                          onClick={() => updateQueuePatientStatus(patient.id, 'Discharged')}
-                          className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold transition"
-                          title="Mark Discharged"
-                        >
-                          Discharge
-                        </button>
-                      </div>
-                    </td>
+                    {canManageOperations && (
+                      <td className="py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => updateQueuePatientStatus(patient.id, 'Treatment', 'Dr. Priya Rao', 'Resus Bay 1')}
+                            className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
+                            title="Move to Treatment"
+                          >
+                            Treat
+                          </button>
+                          <button
+                            onClick={() => updateQueuePatientStatus(patient.id, 'Discharged')}
+                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold transition"
+                            title="Mark Discharged"
+                          >
+                            Discharge
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -482,7 +496,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Visual Hospital Bed &amp; ICU Allocation Matrix</h3>
               <p className="text-xs text-slate-500">
-                Click any bed to toggle state: <strong>Available → Occupied → Cleaning → Available</strong>
+                {canManageOperations ? 'Click any bed to toggle state: Available → Occupied → Cleaning → Available' : 'Current bed allocation status (read-only)'}
               </p>
             </div>
             <div className="flex items-center gap-3 text-xs font-semibold">
@@ -500,17 +514,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
               const isClean = bed.status === 'Cleaning';
               const isRes = bed.status === 'Reserved';
 
-              return (
-                <button
-                  key={bed.id}
-                  onClick={() => toggleBedStatus(bed.id)}
-                  className={`p-3.5 rounded-xl border text-left transition transform active:scale-95 space-y-1.5 ${
-                    isAvail ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
-                    isOcc ? 'bg-red-50/50 border-red-200 hover:border-red-400' :
-                    isClean ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
-                    'bg-purple-50/50 border-purple-200 hover:border-purple-400'
-                  }`}
-                >
+              const bedContent = (
+                <>
                   <div className="flex items-center justify-between text-xs font-bold">
                     <span className="font-mono text-slate-900">{bed.bedNumber}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
@@ -528,8 +533,33 @@ export const HospitalCommandCenterPage: React.FC = () => {
                       {bed.patientName}
                     </div>
                   )}
-                </button>
+                </>
               );
+
+              const bedClasses = `p-3.5 rounded-xl border text-left transition transform active:scale-95 space-y-1.5 ${
+                isAvail ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
+                isOcc ? 'bg-red-50/50 border-red-200 hover:border-red-400' :
+                isClean ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
+                'bg-purple-50/50 border-purple-200 hover:border-purple-400'
+              } ${!canManageOperations ? 'cursor-default' : 'cursor-pointer'}`;
+
+              if (canManageOperations) {
+                return (
+                  <button
+                    key={bed.id}
+                    onClick={() => toggleBedStatus(bed.id)}
+                    className={bedClasses}
+                  >
+                    {bedContent}
+                  </button>
+                );
+              } else {
+                return (
+                  <div key={bed.id} className={bedClasses}>
+                    {bedContent}
+                  </div>
+                );
+              }
             })}
           </div>
         </div>

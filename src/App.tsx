@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -16,9 +16,11 @@ import { EmergencyTransportPage } from './pages/EmergencyTransportPage';
 import { PatientJourneyPage } from './pages/PatientJourneyPage';
 import { SystemInsightsPage } from './pages/SystemInsightsPage';
 import { PrivacySecurityPage } from './pages/PrivacySecurityPage';
+import { LoginPage } from './pages/LoginPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
+  const { isAuthenticated, currentUser, login } = useApp();
 
   const navigate = (path: string) => {
     setCurrentPath(path);
@@ -51,6 +53,16 @@ const AppContent: React.FC = () => {
         return <LandingPage navigate={navigate} />;
     }
   };
+
+  const handleLoginSuccess = (role: string) => {
+    // All users go to home page after login, they can navigate from there
+    navigate('/');
+  };
+
+  // Gate: show login page if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-brand-500 selection:text-white">
