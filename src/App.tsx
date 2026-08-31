@@ -17,6 +17,7 @@ import { PatientJourneyPage } from './pages/PatientJourneyPage';
 import { SystemInsightsPage } from './pages/SystemInsightsPage';
 import { PrivacySecurityPage } from './pages/PrivacySecurityPage';
 import { LoginPage } from './pages/LoginPage';
+import { HospitalManagementPage } from './pages/HospitalManagementPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
@@ -49,6 +50,8 @@ const AppContent: React.FC = () => {
         return <SystemInsightsPage navigate={navigate} />;
       case '/privacy':
         return <PrivacySecurityPage />;
+      case '/hospital':
+        return <HospitalManagementPage navigate={navigate} />;
       default:
         return <LandingPage navigate={navigate} />;
     }

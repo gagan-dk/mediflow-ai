@@ -26,12 +26,7 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
-  const { hospitals, triggerSIHDemoMode } = useApp();
-
-  const handleStartDemo = () => {
-    triggerSIHDemoMode();
-    navigate('/assessment-result');
-  };
+  const { hospitals } = useApp();
 
   return (
     <div className="space-y-16 pb-12">
@@ -85,13 +80,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                 <span>Find Nearby Hospitals</span>
               </button>
 
-              <button
-                onClick={handleStartDemo}
-                className="flex items-center gap-2 px-5 py-3.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 font-bold rounded-xl text-sm shadow-xs transition transform active:scale-95"
-              >
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>⚡ 1-Click SIH Demo</span>
-              </button>
+
             </div>
           </div>
 
@@ -360,41 +349,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
             <p className="text-xs text-slate-500 leading-relaxed">
               Matches ambulances based on onboard equipment (ALS, Ventilator, Oxygen support) and shortest ETA via live GIS grid.
             </p>
-          </div>
-        </div>
-      </section>
-
-      {/* SIH Callout Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white rounded-3xl p-8 sm:p-12 shadow-2xl border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-4 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Smart India Hackathon Presentation Mode</span>
-            </div>
-            <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Ready to experience the 2-Minute Emergency Flow?
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              Click below to load a live 48yo acute coronary case, execute AI prioritization, send hospital pre-alerts, dispatch ambulances, and inspect the hospital command center.
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <button
-              onClick={handleStartDemo}
-              className="px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold rounded-xl text-sm shadow-xl shadow-amber-500/30 transition transform active:scale-95 flex items-center justify-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Launch 1-Click SIH Demo</span>
-            </button>
-            <button
-              onClick={() => navigate('/insights')}
-              className="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-sm border border-slate-700 transition flex items-center justify-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4 text-brand-400" />
-              <span>Run 100-Case Simulation</span>
-            </button>
           </div>
         </div>
       </section>

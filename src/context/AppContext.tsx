@@ -21,6 +21,8 @@ import {
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
+import { Doctor } from '../types/doctor';
+import { Room } from '../types/room';
 
 // ─── Demo credentials for prototype authentication ────────────────────────────
 const DEMO_CREDENTIALS: Array<{
@@ -89,6 +91,12 @@ interface AppContextType {
   selectedHospital: Hospital | null;
   setSelectedHospital: (hospital: Hospital | null) => void;
   rankedHospitals: RankedHospital[];
+
+  // Hospital Staff Management
+  doctors: Doctor[];
+  setDoctors: (doctors: Doctor[]) => void;
+  rooms: Room[];
+  setRooms: (rooms: Room[]) => void;
   
   // Assessment & Triage
   currentAssessmentInput: EmergencyAssessmentInput | null;
@@ -173,6 +181,86 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [beds, setBeds] = useState<Bed[]>(INITIAL_BEDS);
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>(INITIAL_QUEUE_PATIENTS);
   const [preAlerts, setPreAlerts] = useState<HospitalPreAlert[]>(INITIAL_PRE_ALERTS);
+  
+  // Hospital Staff Management state
+  const [doctors, setDoctors] = useState<Doctor[]>([
+    {
+      id: 'doc-1',
+      name: 'Dr. Anil Kumar',
+      specialization: 'Cardiologist',
+      department: 'Cardiology',
+      experience: 12,
+      status: 'Available',
+      dutyStatus: 'On Duty',
+      room: 'Room 301',
+      emergencyAvailable: true,
+      consultationHours: '9 AM - 5 PM',
+      email: 'anil.kumar@hospital.com',
+      phone: '+91 9876543210'
+    },
+    {
+      id: 'doc-2',
+      name: 'Dr. Priya Sharma',
+      specialization: 'Neurologist',
+      department: 'Neurology',
+      experience: 8,
+      status: 'Busy',
+      dutyStatus: 'On Duty',
+      room: 'Room 205',
+      emergencyAvailable: true,
+      consultationHours: '10 AM - 6 PM',
+      email: 'priya.sharma@hospital.com',
+      phone: '+91 9876543211'
+    }
+  ]);
+  const [rooms, setRooms] = useState<Room[]>([
+    {
+      id: 'room-1',
+      roomNumber: 'ER-01',
+      type: 'Emergency Room',
+      floor: 'Ground Floor',
+      department: 'Emergency Department',
+      capacity: 1,
+      currentOccupancy: 1,
+      status: 'Occupied',
+      assignedPatient: 'P-1042',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'room-2',
+      roomNumber: 'ER-02',
+      type: 'Emergency Room',
+      floor: 'Ground Floor',
+      department: 'Emergency Department',
+      capacity: 1,
+      currentOccupancy: 0,
+      status: 'Available',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'room-3',
+      roomNumber: 'ICU-01',
+      type: 'ICU',
+      floor: 'First Floor',
+      department: 'Critical Care',
+      capacity: 1,
+      currentOccupancy: 0,
+      status: 'Available',
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'room-4',
+      roomNumber: 'ICU-02',
+      type: 'ICU',
+      floor: 'First Floor',
+      department: 'Critical Care',
+      capacity: 1,
+      currentOccupancy: 1,
+      status: 'Occupied',
+      assignedPatient: 'P-1043',
+      lastUpdated: new Date().toISOString()
+    }
+  ]);
 
   // Active session state
   const [currentAssessmentInput, setCurrentAssessmentInput] = useState<EmergencyAssessmentInput | null>(null);
@@ -804,7 +892,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         rerouteData,
         simulateHospitalBecomingFull,
         resetHospitalCapacities,
-        triggerSIHDemoMode
+        triggerSIHDemoMode,
+        doctors,
+        setDoctors,
+        rooms,
+        setRooms
       }}
     >
       {children}

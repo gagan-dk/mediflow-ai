@@ -19,7 +19,8 @@ import {
   Layers, 
   ArrowRight,
   TrendingUp,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  MapPin
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -45,6 +46,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const { 
     currentUser, 
     hospitals, 
+    selectedHospital,
     beds, 
     toggleBedStatus, 
     queuePatients, 
@@ -62,7 +64,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
   // RBAC: only hospital_staff and admin can manage queue and beds
   const canManageOperations = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
 
-  const primaryHospital = hospitals[0]; // CityCare
+  const primaryHospital = selectedHospital || hospitals[0]; // Use selected hospital or fallback to first
+
+  // Show hospital selection reminder for hospital staff if no hospital is selected
+  const showHospitalSelectionReminder = currentUser.role === 'hospital_staff' && !selectedHospital;
 
   // Aggregated Stats
   const totalBeds = primaryHospital.totalBeds;
@@ -113,6 +118,16 @@ export const HospitalCommandCenterPage: React.FC = () => {
             Real-time ER triage management, pre-arrival alert coordination, ICU allocation, and regional load balancing.
           </p>
         </div>
+
+        {/* Hospital Selection Reminder for Staff */}
+        {showHospitalSelectionReminder && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 max-w-md">
+            <div className="flex items-center gap-2 text-xs text-amber-800">
+              <MapPin className="w-4 h-4" />
+              <span>Please select your hospital in the Hospital section for personalized dashboard.</span>
+            </div>
+          </div>
+        )}
 
         {/* Top Action Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl shadow-xs text-xs font-semibold">

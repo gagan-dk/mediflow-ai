@@ -33,7 +33,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const { 
     currentUser, 
     setUserRole, 
-    triggerSIHDemoMode, 
     simulateHospitalBecomingFull, 
     notifications,
     isAuthenticated,
@@ -51,7 +50,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const navLinks = [
     { label: 'Home', path: '/', icon: Activity },
     { label: 'Emergency Prioritization', path: '/assessment', icon: ShieldAlert },
-    { label: 'Find Hospital', path: '/finder', icon: Hospital },
+    ...(currentUser.role === 'hospital_staff' 
+      ? [{ label: 'Hospital', path: '/hospital', icon: Hospital }] 
+      : [{ label: 'Find Hospital', path: '/finder', icon: Hospital }]
+    ),
     { label: 'Live Queue', path: '/queue', icon: Clock },
     { label: 'My Journey', path: '/journey', icon: Navigation },
     { label: 'Command Center', path: '/command-center', icon: BarChart3 },
@@ -68,15 +70,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const handleNavClick = (path: string) => {
     navigate(path);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleDemoClick = () => {
-    // Auto-login as staff so judges skip the login screen
-    if (!isAuthenticated) {
-      login('staff@mediflow.ai', 'staff123');
-    }
-    triggerSIHDemoMode();
-    navigate('/assessment-result');
   };
 
   return (
@@ -128,17 +121,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
 
             {/* Right Action Bar */}
             <div className="flex items-center gap-2">
-              {/* SIH Golden Demo Mode Button */}
-              <button
-                onClick={handleDemoClick}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-bold shadow-md shadow-amber-500/25 transition transform active:scale-95 animate-pulse-slow shrink-0"
-                title="Run complete 2-minute golden emergency workflow for SIH judges"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">⚡ SIH Demo Mode</span>
-                <span className="sm:hidden">⚡ Demo</span>
-              </button>
-
               {/* Dynamic Capacity Crash Button */}
               <button
                 onClick={() => simulateHospitalBecomingFull('hosp-citycare')}

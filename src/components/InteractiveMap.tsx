@@ -47,7 +47,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const activeUserLocation = patientLocation || {
     lat: userLiveLocation.lat,
     lng: userLiveLocation.lng,
-    address: userLiveLocation.address
+    address: userLiveLocation.address,
+    city: userLiveLocation.city
   };
 
   const [activeHospital, setActiveHospital] = useState<Hospital | null>(
@@ -234,7 +235,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                 <Navigation2 className="w-4 h-4 transform -rotate-45" />
               </div>
               <div className="absolute top-9 left-1/2 -translate-x-1/2 whitespace-nowrap bg-slate-900/90 text-sky-300 text-[10px] font-bold px-2 py-0.5 rounded shadow border border-sky-500/40">
-                You ({activeUserLocation.city || 'Live GPS'})
+                You ({('city' in activeUserLocation && activeUserLocation.city) || 'Live GPS'})
               </div>
             </div>
           </div>
