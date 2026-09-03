@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Hospital, Bed } from '../types/hospital';
-import { Ambulance } from '../types/ambulance';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { Hospital, Bed, Doctor, Room } from '../types/hospital';
+import { Ambulance, AmbulanceStatus } from '../types/ambulance';
 import { QueuePatient, QueueStatus } from '../types/queue';
 import { HospitalPreAlert, PreAlertStatus } from '../types/preAlert';
 import { AssessmentResult, EmergencyAssessmentInput } from '../types/prioritization';
@@ -11,18 +11,20 @@ import {
   INITIAL_AMBULANCES,
   INITIAL_BEDS,
   INITIAL_QUEUE_PATIENTS,
-  INITIAL_PRE_ALERTS
+  INITIAL_PRE_ALERTS,
+  hospitalToBeds
 } from '../services/mockData';
 import { 
   UserGeoLocation, 
   fetchRealNearbyHospitals, 
-  reverseGeocodeCoords 
+  reverseGeocodeCoords,
+  generateRealCalibratedHospitals
 } from '../services/realHospitalService';
+import { hospitalDiscoveryService } from '../services/hospitalDiscoveryService';
+import { hospitalService } from '../services/hospitalService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
-import { Doctor } from '../types/doctor';
-import { Room } from '../types/room';
 
 // ─── Demo credentials for prototype authentication ────────────────────────────
 const DEMO_CREDENTIALS: Array<{
@@ -80,6 +82,7 @@ interface AppContextType {
   // User & Role
   currentUser: UserProfile;
   setUserRole: (role: UserRole) => void;
+  updateProfile: (updates: Partial<UserProfile>) => void;
 
   // Live User Location & Geolocation
   userLiveLocation: UserGeoLocation;
@@ -88,6 +91,8 @@ interface AppContextType {
 
   // Hospital state
   hospitals: Hospital[];
+  setHospitals: (hospitals: Hospital[]) => void;
+  addDiscoveredHospitals: (newHospitals: Hospital[]) => void;
   selectedHospital: Hospital | null;
   setSelectedHospital: (hospital: Hospital | null) => void;
   rankedHospitals: RankedHospital[];
@@ -125,6 +130,24 @@ interface AppContextType {
   // Bed Management
   beds: Bed[];
   toggleBedStatus: (bedId: string) => void;
+  updateBedStatus: (bedId: string, status: Bed['status'], patientName?: string) => void;
+
+  // Centralized Hospital Service
+  getHospitalById: (hospitalId: string) => Hospital | null;
+  updateHospital: (hospital: Hospital) => Hospital;
+  updateHospitalBeds: (hospitalId: string, data: Partial<Hospital['beds']>) => void;
+  updateHospitalICU: (hospitalId: string, data: Partial<Hospital['icu']>) => void;
+  updateHospitalEmergencyRooms: (hospitalId: string, data: Partial<Hospital['emergencyRooms']>) => void;
+  updateHospitalQueue: (hospitalId: string, data: Partial<Hospital['queue']>) => void;
+  updateHospitalDoctors: (hospitalId: string, data: Partial<Hospital['doctors']>) => void;
+  updateHospitalAmbulances: (hospitalId: string, data: Partial<Hospital['ambulances']>) => void;
+  updateHospitalCapabilities: (hospitalId: string, data: Partial<Hospital['facilities']>) => void;
+  addDoctorToHospital: (hospitalId: string, doctor: Doctor) => Doctor;
+  updateDoctorInHospital: (hospitalId: string, doctorId: string, updates: Partial<Doctor>) => Doctor | null;
+  removeDoctorFromHospital: (hospitalId: string, doctorId: string) => void;
+  addRoomToHospital: (hospitalId: string, room: Room) => Room;
+  updateRoomInHospital: (hospitalId: string, roomId: string, updates: Partial<Room>) => Room | null;
+  resyncHospitalDoctors: (hospitalId: string) => void;
   
   // Patient Journey
   journeyStage: JourneyStage;
@@ -162,106 +185,89 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     hospitalId: 'hosp-citycare',
     hospitalName: 'CityCare Medical Center',
     badgeNumber: 'ER-7701',
-    email: 'priya.rao@citycare.org'
+    staffId: 'ER-7701',
+    email: 'priya.rao@citycare.org',
+    phone: '+91 80 4120 5501',
+    department: 'Emergency Department',
+    specialization: 'Emergency Medicine',
+    experienceYears: 12,
+    accountStatus: 'active',
+    createdAt: 'Jan 2024',
+    lastLogin: new Date().toISOString(),
+    avatarInitials: 'PR'
   });
 
-  // Live Location state (Defaulting to user's metropolitan center)
+  // Live Location state - will be updated with real GPS coordinates
   const [userLiveLocation, setUserLiveLocation] = useState<UserGeoLocation>({
-    lat: 12.9716,
-    lng: 77.5946,
-    address: 'Central Metro Hub (Detecting GPS...)',
+    lat: 0,
+    lng: 0,
+    address: 'Detecting your location...',
     isLiveGps: false,
-    city: 'Bangalore'
+    city: ''
   });
   const [isLocatingUser, setIsLocatingUser] = useState<boolean>(false);
+  const [locationAttempted, setLocationAttempted] = useState<boolean>(false);
 
-  // Base state collections
-  const [hospitals, setHospitals] = useState<Hospital[]>(INITIAL_HOSPITALS);
+  // Centralized hospital data from hospitalService
+  // Initialize from storage or use mock data as fallback
+  const [hospitals, setHospitalsState] = useState<Hospital[]>(() => {
+    const stored = hospitalService.getHospitals();
+    if (stored.length > 0) return stored;
+    // Save initial mock data to storage for persistence
+    INITIAL_HOSPITALS.forEach(h => hospitalService.updateHospital(h));
+    return INITIAL_HOSPITALS;
+  });
+  
+  // Sync hospitals from storage on mount
+  useEffect(() => {
+    const stored = hospitalService.getHospitals();
+    if (stored.length > 0) setHospitalsState(stored);
+    
+    // Listen for storage changes from other tabs
+    const handleStorageChange = (e: CustomEvent) => {
+      if (e.detail) {
+        const updated = hospitalService.getHospitals();
+        setHospitalsState(updated);
+      }
+    };
+    window.addEventListener('mediflow:hospitals-changed', handleStorageChange as EventListener);
+    return () => window.removeEventListener('mediflow:hospitals-changed', handleStorageChange as EventListener);
+  }, []);
+  
+  const setHospitals = useCallback((newHospitals: Hospital[]) => {
+    newHospitals.forEach(h => hospitalService.updateHospital(h));
+    setHospitalsState(hospitalService.getHospitals());
+  }, []);
+
+  const addDiscoveredHospitals = useCallback((newHospitals: Hospital[]) => {
+    if (!newHospitals || newHospitals.length === 0) return;
+    setHospitalsState(prev => {
+      const merged = [...prev];
+      for (const nh of newHospitals) {
+        const existingIdx = merged.findIndex(h => 
+          h.id === nh.id || 
+          h.hospitalId === nh.hospitalId ||
+          (Math.abs(h.coordinates.lat - nh.coordinates.lat) < 0.003 && Math.abs(h.coordinates.lng - nh.coordinates.lng) < 0.003)
+        );
+        if (existingIdx >= 0) {
+          merged[existingIdx] = { ...merged[existingIdx], ...nh };
+        } else {
+          // Prepend newly searched hospital so it's prioritized
+          merged.unshift(nh);
+        }
+      }
+      return merged;
+    });
+  }, []);
+  
   const [ambulances, setAmbulances] = useState<Ambulance[]>(INITIAL_AMBULANCES);
-  const [beds, setBeds] = useState<Bed[]>(INITIAL_BEDS);
+  const [beds, setBedsState] = useState<Bed[]>(() => {
+    const hosp = hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    return hospitalToBeds(hosp);
+  });
   const [queuePatients, setQueuePatients] = useState<QueuePatient[]>(INITIAL_QUEUE_PATIENTS);
   const [preAlerts, setPreAlerts] = useState<HospitalPreAlert[]>(INITIAL_PRE_ALERTS);
   
-  // Hospital Staff Management state
-  const [doctors, setDoctors] = useState<Doctor[]>([
-    {
-      id: 'doc-1',
-      name: 'Dr. Anil Kumar',
-      specialization: 'Cardiologist',
-      department: 'Cardiology',
-      experience: 12,
-      status: 'Available',
-      dutyStatus: 'On Duty',
-      room: 'Room 301',
-      emergencyAvailable: true,
-      consultationHours: '9 AM - 5 PM',
-      email: 'anil.kumar@hospital.com',
-      phone: '+91 9876543210'
-    },
-    {
-      id: 'doc-2',
-      name: 'Dr. Priya Sharma',
-      specialization: 'Neurologist',
-      department: 'Neurology',
-      experience: 8,
-      status: 'Busy',
-      dutyStatus: 'On Duty',
-      room: 'Room 205',
-      emergencyAvailable: true,
-      consultationHours: '10 AM - 6 PM',
-      email: 'priya.sharma@hospital.com',
-      phone: '+91 9876543211'
-    }
-  ]);
-  const [rooms, setRooms] = useState<Room[]>([
-    {
-      id: 'room-1',
-      roomNumber: 'ER-01',
-      type: 'Emergency Room',
-      floor: 'Ground Floor',
-      department: 'Emergency Department',
-      capacity: 1,
-      currentOccupancy: 1,
-      status: 'Occupied',
-      assignedPatient: 'P-1042',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'room-2',
-      roomNumber: 'ER-02',
-      type: 'Emergency Room',
-      floor: 'Ground Floor',
-      department: 'Emergency Department',
-      capacity: 1,
-      currentOccupancy: 0,
-      status: 'Available',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'room-3',
-      roomNumber: 'ICU-01',
-      type: 'ICU',
-      floor: 'First Floor',
-      department: 'Critical Care',
-      capacity: 1,
-      currentOccupancy: 0,
-      status: 'Available',
-      lastUpdated: new Date().toISOString()
-    },
-    {
-      id: 'room-4',
-      roomNumber: 'ICU-02',
-      type: 'ICU',
-      floor: 'First Floor',
-      department: 'Critical Care',
-      capacity: 1,
-      currentOccupancy: 1,
-      status: 'Occupied',
-      assignedPatient: 'P-1043',
-      lastUpdated: new Date().toISOString()
-    }
-  ]);
-
   // Active session state
   const [currentAssessmentInput, setCurrentAssessmentInput] = useState<EmergencyAssessmentInput | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
@@ -270,6 +276,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(INITIAL_AMBULANCES[0] || null);
   const [myQueueToken, setMyQueueToken] = useState<QueuePatient | null>(null);
   const [journeyStage, setJourneyStage] = useState<JourneyStage>('idle');
+
+  // Hospital Staff Management state — derived from the SELECTED hospital's
+  // single shared record (doctorList / roomsList) so staff writes are
+  // immediately visible to patients via the centralized store.
+  const [doctors, setDoctorsState] = useState<Doctor[]>(() => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    return hosp?.doctorList || [];
+  });
+  const [rooms, setRoomsState] = useState<Room[]>(() => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    return hosp?.roomsList || [];
+  });
+
+  // Keep in sync whenever the selected hospital or the shared store changes
+  useEffect(() => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (hosp) {
+      setDoctorsState(hosp.doctorList || []);
+      setRoomsState(hosp.roomsList || []);
+      if (hosp.bedList && hosp.bedList.length > 0) {
+        setBedsState(hosp.bedList);
+      } else {
+        const initial = hospitalToBeds(hosp);
+        setBedsState(initial);
+      }
+    }
+  }, [selectedHospital, hospitals, currentUser.hospitalId]);
+
+  const setDoctors = (newDoctors: Doctor[]) => {
+    setDoctorsState(newDoctors);
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (hosp) {
+      hospitalService.updateHospital({ ...hosp, doctorList: newDoctors, operationalDataAvailable: true });
+    }
+  };
+
+  const setRooms = (newRooms: Room[]) => {
+    setRoomsState(newRooms);
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (hosp) {
+      hospitalService.updateHospital({ ...hosp, roomsList: newRooms, operationalDataAvailable: true });
+    }
+  };
 
   // Notifications
   const [notifications, setNotifications] = useState<SystemNotification[]>([
@@ -291,6 +340,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const detectUserLiveLocation = async () => {
     if (typeof window === 'undefined' || !navigator.geolocation) {
       console.warn('Geolocation not supported by this browser.');
+      addNotification({
+        title: '❌ Location Error',
+        message: 'Geolocation is not supported by this browser.',
+        type: 'system'
+      });
       return;
     }
 
@@ -311,22 +365,66 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             accuracyMeters: Math.round(accuracy)
           });
 
-          // Fetch real nearby existing hospitals around user's live position
-          const realNearby = await fetchRealNearbyHospitals(latitude, longitude, 15);
-          if (realNearby && realNearby.length > 0) {
-            setHospitals(realNearby);
-            setSelectedHospital(realNearby[0]);
+          console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
+          console.log('[GPS] Reverse geocoded address:', geoInfo.address);
+
+          // Discovery: expand radius until we find >= 10 hospitals around the user's real position
+          let nearbyHospitals: Hospital[] = [];
+          try {
+            const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
+              minHospitals: 10,
+              initialRadiusKm: 10,
+              maxRadiusKm: 30,
+            });
+            nearbyHospitals = discovery.hospitals;
+            console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km');
+          } catch (discoveryError) {
+            console.warn('[Hospitals] Discovery error, falling back:', discoveryError);
           }
 
-          addNotification({
-            title: '📍 Live GPS Location Acquired',
-            message: `Current location: ${geoInfo.address} (${latitude.toFixed(4)}°, ${longitude.toFixed(4)}°). Querying real verified hospitals nearby.`,
-            type: 'system'
-          });
+          // If discovery returned nothing useful, fall back to the direct OSM query
+          if (nearbyHospitals.length === 0) {
+            nearbyHospitals = await fetchRealNearbyHospitals(latitude, longitude, 15);
+            console.log('[Hospitals] Direct OSM query found:', nearbyHospitals.length);
+          }
+
+          if (nearbyHospitals && nearbyHospitals.length > 0) {
+            // Merge real location data with any staff-configured operational
+            // data already stored in the centralized hospital record.
+            const merged = hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
+            setHospitals(merged);
+            setSelectedHospital(merged[0]);
+            addNotification({
+              title: '📍 Live GPS Location Acquired',
+              message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby.`,
+              type: 'system'
+            });
+          } else {
+            console.warn('[Hospitals] No hospitals found, using fallback hospitals');
+            const fallbackHospitals = generateRealCalibratedHospitals(latitude, longitude);
+            const merged = hospitalService.mergeDiscoveredHospitals(fallbackHospitals);
+            setHospitals(merged);
+            setSelectedHospital(merged[0]);
+            addNotification({
+              title: '📍 Location Found — Hospital Data Unavailable',
+              message: `Using calibrated hospital estimates around ${geoInfo.address} since live hospital data could not be fetched.`,
+              type: 'system'
+            });
+          }
 
           soundFX.playChime();
         } catch (e) {
           console.error('Error fetching real hospitals:', e);
+          // Still replace the default mock hospitals with location-calibrated ones
+          const fallbackHospitals = generateRealCalibratedHospitals(latitude, longitude);
+          const merged = hospitalService.mergeDiscoveredHospitals(fallbackHospitals);
+          setHospitals(merged);
+          setSelectedHospital(merged[0]);
+          addNotification({
+            title: '⚠️ Location Error',
+            message: 'Failed to fetch hospitals. Using fallback data.',
+            type: 'system'
+          });
         } finally {
           setIsLocatingUser(false);
         }
@@ -334,19 +432,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       (err) => {
         console.warn('GPS location permission denied or timed out:', err.message);
         setIsLocatingUser(false);
+        addNotification({
+          title: '⚠️ Location Permission Denied',
+          message: 'Please enable location access to find nearby hospitals.',
+          type: 'system'
+        });
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000
+        timeout: 15000,
+        maximumAge: 0
       }
     );
   };
 
-  // Attempt live GPS auto-detect on initial load
+  // Attempt live GPS auto-detect immediately on app load with High Accuracy
   useEffect(() => {
-    detectUserLiveLocation();
-  }, []);
+    if (!locationAttempted) {
+      setLocationAttempted(true);
+      detectUserLiveLocation();
+    }
+  }, [locationAttempted]);
 
   // Calculate ranked hospitals dynamically whenever assessment or hospitals change
   const rankedHospitals = React.useMemo(() => {
@@ -361,7 +467,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!cred) {
       return { success: false, error: 'Invalid email or password. Please check your credentials.' };
     }
-    setCurrentUser({
+    const profile: UserProfile = {
       id: `usr-${cred.role}`,
       name: cred.name,
       role: cred.role,
@@ -370,7 +476,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       badgeNumber: cred.badgeNumber,
       email: cred.email,
       avatarInitials: cred.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
-    });
+      accountStatus: 'active',
+      createdAt: 'Jan 2024',
+      lastLogin: new Date().toISOString(),
+    };
+
+    // Add role-specific fields
+    if (cred.role === 'patient') {
+      profile.age = 48;
+      profile.gender = 'male';
+      profile.phone = '+91 98765 43210';
+      profile.bloodGroup = 'O+';
+      profile.location = 'Bangalore, India';
+      profile.emergencyContact = '+91 98765 00000';
+      profile.medicalInfo = 'No allergies reported. Hypertension, Type 2 Diabetes.';
+    } else if (cred.role === 'hospital_staff') {
+      profile.staffId = cred.badgeNumber;
+      profile.phone = '+91 80 4120 5501';
+      profile.department = 'Emergency Department';
+      profile.specialization = 'Emergency Medicine';
+      profile.experienceYears = 12;
+    } else if (cred.role === 'admin') {
+      profile.phone = '+91 80 4120 5500';
+      profile.adminLevel = 'System Administrator';
+    }
+
+    setCurrentUser(profile);
     setIsAuthenticated(true);
     soundFX.playChime();
     return { success: true, role: cred.role };
@@ -383,6 +514,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name: 'Guest',
       role: 'patient',
       email: 'guest@mediflow.ai',
+      accountStatus: 'active',
+      createdAt: new Date().toISOString(),
+      lastLogin: new Date().toISOString(),
     });
     // Reset session state
     setAssessmentResult(null);
@@ -408,19 +542,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       name = 'Rohan Verma (Patient)';
     }
 
-    setCurrentUser({
+    const profile: UserProfile = {
       id: `usr-${role}`,
       name,
       role,
       hospitalId,
       hospitalName,
       badgeNumber: `MED-${Math.floor(1000 + Math.random() * 9000)}`,
-      email: `${role}@mediflow.ai`
-    });
+      email: `${role}@mediflow.ai`,
+      accountStatus: 'active',
+      createdAt: 'Jan 2024',
+      lastLogin: new Date().toISOString(),
+    };
+
+    if (role === 'patient') {
+      profile.age = 48;
+      profile.gender = 'male';
+      profile.phone = '+91 98765 43210';
+      profile.bloodGroup = 'O+';
+    } else if (role === 'hospital_staff') {
+      profile.phone = '+91 80 4120 5501';
+      profile.department = 'Emergency Department';
+      profile.experienceYears = 12;
+    }
+
+    setCurrentUser(profile);
 
     addNotification({
       title: `Switched View: ${role.replace('_', ' ').toUpperCase()}`,
       message: `Active dashboard role adjusted for demonstration.`,
+      type: 'system'
+    });
+  };
+
+  const updateProfile = (updates: Partial<UserProfile>) => {
+    setCurrentUser(prev => {
+      const updated = { ...prev, ...updates };
+      // Keep avatar initials in sync with the new name
+      if (updates.name) {
+        updated.avatarInitials = updates.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      }
+      return updated;
+    });
+    addNotification({
+      title: 'Profile Updated',
+      message: 'Your profile information has been saved successfully.',
       type: 'system'
     });
   };
@@ -696,23 +862,82 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playChime();
   };
 
-  // Bed status toggle
-  const toggleBedStatus = (bedId: string) => {
-    setBeds(prev => prev.map(b => {
+  // Bed status updater - updates ONLY the targeted bed/room and recalculates metrics accurately
+  const updateBedStatus = (bedId: string, status: Bed['status'], patientName?: string) => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (!hosp) {
+      soundFX.playChime();
+      return;
+    }
+    
+    // Get current bed list without re-randomizing or resetting other beds
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : (beds.length > 0 ? beds : hospitalToBeds(hosp));
+    
+    // Modify ONLY the selected bed, preserving all other rooms/beds
+    const newBeds = currentBeds.map(b => {
       if (b.id !== bedId) return b;
-      let nextStatus: Bed['status'] = 'Available';
-      if (b.status === 'Available') nextStatus = 'Occupied';
-      else if (b.status === 'Occupied') nextStatus = 'Cleaning';
-      else if (b.status === 'Cleaning') nextStatus = 'Available';
-      else if (b.status === 'Reserved') nextStatus = 'Occupied';
-
       return {
         ...b,
-        status: nextStatus,
+        status,
+        patientName: status === 'Occupied' ? (patientName || b.patientName || 'Assigned Patient') : (status === 'Available' ? undefined : b.patientName),
         updatedAt: 'Just now'
       };
-    }));
+    });
+    
+    setBedsState(newBeds);
+
+    // Accurately recalculate metrics from actual beds
+    const availableBeds = newBeds.filter(b => b.status === 'Available').length;
+    const occupiedBeds = newBeds.filter(b => b.status === 'Occupied').length;
+    const reservedBeds = newBeds.filter(b => b.status === 'Reserved').length;
+    const icuAvailable = newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length;
+    const erAvailable = newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Available').length;
+
+    const updatedHosp: Hospital = {
+      ...hosp,
+      bedList: newBeds,
+      availableBeds,
+      beds: {
+        ...hosp.beds,
+        total: newBeds.length,
+        available: availableBeds,
+        occupied: occupiedBeds,
+        reserved: reservedBeds
+      },
+      availableICUBeds: icuAvailable,
+      icu: {
+        ...hosp.icu,
+        available: icuAvailable,
+        occupied: newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Occupied').length
+      },
+      availableEmergencyBeds: erAvailable,
+      emergencyRooms: {
+        ...hosp.emergencyRooms,
+        available: erAvailable,
+        occupied: newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Occupied').length
+      }
+    };
+
+    hospitalService.updateHospital(updatedHosp);
+    setHospitalsState(prev => prev.map(h => (h.id === updatedHosp.id || h.hospitalId === updatedHosp.hospitalId ? updatedHosp : h)));
     soundFX.playChime();
+  };
+
+  // Bed status toggle - 1-click cycle: Available -> Occupied -> Cleaning -> Reserved -> Available
+  const toggleBedStatus = (bedId: string) => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (!hosp) return;
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : (beds.length > 0 ? beds : hospitalToBeds(hosp));
+    const targetBed = currentBeds.find(b => b.id === bedId);
+    if (!targetBed) return;
+
+    let nextStatus: Bed['status'] = 'Available';
+    if (targetBed.status === 'Available') nextStatus = 'Occupied';
+    else if (targetBed.status === 'Occupied') nextStatus = 'Cleaning';
+    else if (targetBed.status === 'Cleaning') nextStatus = 'Reserved';
+    else if (targetBed.status === 'Reserved') nextStatus = 'Available';
+
+    updateBedStatus(bedId, nextStatus);
   };
 
   // Advance journey timeline
@@ -742,7 +967,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetHosp = targetHospitalId ? (hospitals.find(h => h.id === targetHospitalId) || hospitals[0]) : hospitals[0];
 
     // Alter capacity: 0 ICU beds, 96% ER Load
-    setHospitals(prev => prev.map(h => {
+    const updatedHospitals = hospitals.map(h => {
       if (h.id === targetHosp.id) {
         return {
           ...h,
@@ -754,7 +979,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         };
       }
       return h;
-    }));
+    });
+    setHospitals(updatedHospitals);
 
     // Find next best hospital with capacity
     const nextBestHosp = hospitals.find(h => h.id !== targetHosp.id && h.availableICUBeds > 0) || hospitals[1] || hospitals[0];
@@ -777,7 +1003,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const resetHospitalCapacities = () => {
     setHospitals(INITIAL_HOSPITALS);
-    setBeds(INITIAL_BEDS);
+    setBedsState(INITIAL_BEDS);
     setAmbulances(INITIAL_AMBULANCES);
     addNotification({
       title: 'Hospital Capacities Reset',
@@ -855,10 +1081,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         logout,
         currentUser,
         setUserRole,
+        updateProfile,
         userLiveLocation,
         detectUserLiveLocation,
         isLocatingUser,
         hospitals,
+        setHospitals,
+        addDiscoveredHospitals,
         selectedHospital,
         setSelectedHospital,
         rankedHospitals,
@@ -880,6 +1109,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateQueuePatientStatus,
         beds,
         toggleBedStatus,
+        updateBedStatus,
+        getHospitalById: hospitalService.getHospitalById.bind(hospitalService),
+        updateHospital: hospitalService.updateHospital.bind(hospitalService),
+        updateHospitalBeds: hospitalService.updateBedsMetrics.bind(hospitalService),
+        updateHospitalICU: hospitalService.updateICU.bind(hospitalService),
+        updateHospitalEmergencyRooms: hospitalService.updateEmergencyRooms.bind(hospitalService),
+        updateHospitalQueue: hospitalService.updateQueue.bind(hospitalService),
+        updateHospitalDoctors: hospitalService.updateDoctors.bind(hospitalService),
+        updateHospitalAmbulances: hospitalService.updateAmbulances.bind(hospitalService),
+        updateHospitalCapabilities: hospitalService.updateCapabilities.bind(hospitalService),
+        addDoctorToHospital: hospitalService.addDoctor.bind(hospitalService),
+        updateDoctorInHospital: hospitalService.updateDoctor.bind(hospitalService),
+        removeDoctorFromHospital: hospitalService.removeDoctor.bind(hospitalService),
+        addRoomToHospital: hospitalService.addRoom.bind(hospitalService),
+        updateRoomInHospital: hospitalService.updateRoom.bind(hospitalService),
+        resyncHospitalDoctors: hospitalService.resyncDoctors.bind(hospitalService),
         journeyStage,
         setJourneyStage,
         advanceJourneyStage,

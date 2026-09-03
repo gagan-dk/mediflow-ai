@@ -20,12 +20,13 @@ import {
   Navigation
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { hospitalService } from '../services/hospitalService';
 import { InteractiveMap } from '../components/InteractiveMap';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
 import { DoctorManagement } from '../components/DoctorManagement';
 import { RoomManagement } from '../components/RoomManagement';
-import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus } from '../types/doctor';
-import { Room, RoomType, RoomStatus } from '../types/room';
+import { HospitalOperationalDataEditor } from '../components/HospitalOperationalDataEditor';
+import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus, Room, RoomType, RoomStatus, Hospital as HospitalType } from '../types/hospital';
 
 interface HospitalManagementPageProps {
   navigate: (path: string) => void;
@@ -39,15 +40,25 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     userLiveLocation, 
     detectUserLiveLocation,
     currentUser,
-    doctors,
-    setDoctors,
-    rooms,
-    setRooms
+    getHospitalById,
+    addDoctorToHospital,
+    updateDoctorInHospital,
+    removeDoctorFromHospital,
+    addRoomToHospital,
+    updateRoomInHospital,
+    addNotification
   } = useApp();
 
   const [activeSection, setActiveSection] = useState<'selection' | 'profile' | 'doctors' | 'rooms' | 'beds' | 'icu' | 'emergency'>('selection');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedHospitalForProfile, setSelectedHospitalForProfile] = useState<typeof selectedHospital>(null);
+  const [profileHospitalId, setProfileHospitalId] = useState<string | null>(null);
+
+  // Always derive the working record from the centralized store (getHospitalById
+  // reads the latest persisted hospital record each render), so every staff write
+  // immediately reflects here AND in the patient view.
+  const selectedHospitalForProfile: HospitalType | null = profileHospitalId
+    ? getHospitalById(profileHospitalId)
+    : null;
 
   // Filter hospitals based on search
   const filteredHospitals = hospitals.filter(hospital =>
@@ -55,55 +66,77 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     hospital.address?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleSelectHospital = (hospital: any) => {
+  const handleSelectHospital = (hospital: HospitalType) => {
+    // Staff can only manage their assigned hospital
+    const staffHospitalId = currentUser.hospitalId;
+    if (staffHospitalId && hospital.hospitalId !== staffHospitalId && hospital.id !== staffHospitalId) {
+      addNotification({
+        title: '⚠️ Access Restricted',
+        message: `You can only manage your assigned hospital (${currentUser.hospitalName || staffHospitalId}).`,
+        type: 'system',
+      });
+      return;
+    }
     setSelectedHospital(hospital);
-    setSelectedHospitalForProfile(hospital);
+    setProfileHospitalId(hospital.hospitalId || hospital.id);
     setActiveSection('profile');
   };
 
   const handleBackToSelection = () => {
     setActiveSection('selection');
-    setSelectedHospitalForProfile(null);
+    setProfileHospitalId(null);
   };
+
+  // Doctors & Rooms are stored INSIDE the selected hospital's record
+  // (single source of truth shared with patients).
+  const profileDoctors = selectedHospitalForProfile?.doctorList || [];
+  const profileRooms = selectedHospitalForProfile?.roomsList || [];
+  const activeHospitalId = selectedHospitalForProfile?.hospitalId || selectedHospitalForProfile?.id || '';
 
   const handleAddDoctor = (doctor: Omit<Doctor, 'id'>) => {
     const newDoctor: Doctor = {
       ...doctor,
+      hospitalId: activeHospitalId,
       id: `doc-${Date.now()}`
     };
-    setDoctors([...doctors, newDoctor]);
+    addDoctorToHospital(activeHospitalId, newDoctor);
   };
 
   const handleUpdateDoctor = (id: string, updates: Partial<Doctor>) => {
-    setDoctors(doctors.map(doc => doc.id === id ? { ...doc, ...updates } : doc));
+    updateDoctorInHospital(activeHospitalId, id, updates);
   };
 
   const handleRemoveDoctor = (id: string) => {
-    setDoctors(doctors.filter(doc => doc.id !== id));
+    removeDoctorFromHospital(activeHospitalId, id);
   };
 
   const handleAddRoom = (room: Omit<Room, 'id'>) => {
     const newRoom: Room = {
       ...room,
+      hospitalId: activeHospitalId,
       id: `room-${Date.now()}`
     };
-    setRooms([...rooms, newRoom]);
+    addRoomToHospital(activeHospitalId, newRoom);
   };
 
   const handleUpdateRoom = (id: string, updates: Partial<Room>) => {
-    setRooms(rooms.map(room => room.id === id ? { ...room, ...updates, lastUpdated: new Date().toISOString() } : room));
+    updateRoomInHospital(activeHospitalId, id, updates);
   };
 
   const handleRemoveRoom = (id: string) => {
-    setRooms(rooms.filter(room => room.id !== id));
+    hospitalService.removeRoom(activeHospitalId, id);
   };
 
   const handleAssignPatient = (roomId: string, patientId: string) => {
-    setRooms(rooms.map(room => 
-      room.id === roomId 
-        ? { ...room, assignedPatient: patientId, status: 'Occupied', currentOccupancy: room.currentOccupancy + 1, lastUpdated: new Date().toISOString() }
-        : room
-    ));
+    const hosp = getHospitalById(activeHospitalId);
+    if (hosp) {
+      const updated = (hosp.roomsList || []).map(room =>
+        room.id === roomId
+          ? { ...room, assignedPatient: patientId, status: 'Occupied' as const, currentOccupancy: room.currentOccupancy + 1, lastUpdated: new Date().toISOString() }
+          : room
+      );
+      hospitalService.updateHospital({ ...hosp, roomsList: updated });
+    }
   };
 
   // Hospital staff should only see this page
@@ -438,7 +471,8 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
             </button>
           </div>
           <DoctorManagement
-            doctors={doctors}
+            doctors={profileDoctors}
+            hospitalId={selectedHospitalForProfile?.id}
             onAddDoctor={handleAddDoctor}
             onUpdateDoctor={handleUpdateDoctor}
             onRemoveDoctor={handleRemoveDoctor}
@@ -459,7 +493,8 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
             </button>
           </div>
           <RoomManagement
-            rooms={rooms}
+            rooms={profileRooms}
+            hospitalId={selectedHospitalForProfile?.id}
             onAddRoom={handleAddRoom}
             onUpdateRoom={handleUpdateRoom}
             onRemoveRoom={handleRemoveRoom}
@@ -468,22 +503,29 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
         </div>
       )}
 
-      {/* Placeholder for other sections */}
+      {/* Operational Capacity Editor (beds, ICU, emergency rooms, queue, ambulances, facilities) */}
       {(activeSection === 'beds' || activeSection === 'icu' || activeSection === 'emergency') && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-2xl mb-4">
-            <Layers className="w-8 h-8 text-slate-400" />
+        <div>
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => setActiveSection('profile')}
+              className="flex items-center gap-2 text-sm text-slate-600 hover:text-slate-900 transition"
+            >
+              <ChevronRight className="w-4 h-4 rotate-180" />
+              <span>Back to Hospital Profile</span>
+            </button>
           </div>
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Coming Soon</h3>
-          <p className="text-sm text-slate-500 mb-4">
-            The {activeSection} management section is under development.
-          </p>
-          <button
-            onClick={() => setActiveSection('profile')}
-            className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition"
-          >
-            Back to Hospital Profile
-          </button>
+          {selectedHospitalForProfile && (
+            <>
+              <div className="flex items-center gap-2 mb-4">
+                <Layers className="w-4 h-4 text-brand-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  Manage {activeSection === 'beds' ? 'Beds' : activeSection === 'icu' ? 'ICU Capacity' : 'Emergency Department'} for {selectedHospitalForProfile.name}
+                </h3>
+              </div>
+              <HospitalOperationalDataEditor hospital={selectedHospitalForProfile} />
+            </>
+          )}
         </div>
       )}
     </div>

@@ -109,10 +109,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     ? `https://www.google.com/maps/dir/?api=1&origin=${activeUserLocation.lat},${activeUserLocation.lng}&destination=${activeHospital.coordinates.lat},${activeHospital.coordinates.lng}&travelmode=driving`
     : `https://www.google.com/maps/search/hospitals/@${activeUserLocation.lat},${activeUserLocation.lng},14z`;
 
-  // Real Google Maps interactive iframe view parameters
+  // Real Google Maps interactive iframe view - always centered on user's actual location
   const googleMapIframeSrc = `https://maps.google.com/maps?q=${encodeURIComponent(
     activeHospital ? `${activeHospital.name}, ${activeHospital.address}` : `${activeUserLocation.lat},${activeUserLocation.lng}`
-  )}&t=${mapMode === 'satellite' ? 'k' : 'm'}&z=14&ie=UTF8&iwloc=&output=embed`;
+  )}&ll=${activeUserLocation.lat},${activeUserLocation.lng}&z=13&ie=UTF8&iwloc=&output=embed`;
 
   return (
     <div className={`relative bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 flex flex-col ${className}`}>
@@ -132,7 +132,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           >
             <LocateFixed className={`w-3.5 h-3.5 ${isLocatingUser ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">
-              {isLocatingUser ? 'Locating...' : userLiveLocation.isLiveGps ? 'GPS Active' : 'Detect GPS'}
+              {isLocatingUser ? 'Locating...' : userLiveLocation.isLiveGps ? 'GPS Active' : 'Center on Me'}
             </span>
           </button>
         </div>
@@ -173,6 +173,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <div className="absolute inset-0 w-full h-full">
             <iframe
               title="Google Map Live Hospital View"
+              key={`${mapMode}-${activeUserLocation.lat.toFixed(4)}-${activeUserLocation.lng.toFixed(4)}`}
               src={googleMapIframeSrc}
               className="w-full h-full border-0 opacity-90"
               loading="lazy"

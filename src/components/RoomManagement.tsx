@@ -16,10 +16,12 @@ import {
   Wrench,
   Droplets
 } from 'lucide-react';
-import { Room, RoomType, RoomStatus, ROOM_STATUS_COLORS } from '../types/room';
+import { Room, RoomType, RoomStatus } from '../types/hospital';
+import { ROOM_STATUS_COLORS } from '../services/mockData';
 
 interface RoomManagementProps {
   rooms: Room[];
+  hospitalId?: string;
   onAddRoom: (room: Omit<Room, 'id'>) => void;
   onUpdateRoom: (id: string, updates: Partial<Room>) => void;
   onRemoveRoom: (id: string) => void;
@@ -28,6 +30,7 @@ interface RoomManagementProps {
 
 export const RoomManagement: React.FC<RoomManagementProps> = ({
   rooms,
+  hospitalId = 'hosp-citycare',
   onAddRoom,
   onUpdateRoom,
   onRemoveRoom,
@@ -65,6 +68,7 @@ export const RoomManagement: React.FC<RoomManagementProps> = ({
     const formData = new FormData(e.currentTarget);
     
     const roomData: Omit<Room, 'id'> = {
+      hospitalId,
       roomNumber: formData.get('roomNumber') as string,
       type: formData.get('type') as RoomType,
       floor: formData.get('floor') as string,

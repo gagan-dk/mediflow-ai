@@ -7,8 +7,45 @@ export interface UserProfile {
   hospitalId?: string;
   hospitalName?: string;
   badgeNumber?: string;
+  staffId?: string;
   email: string;
+  phone?: string;
+  avatarUrl?: string;
   avatarInitials?: string;
+  
+  // Patient-specific fields
+  age?: number;
+  gender?: string;
+  emergencyContact?: string;
+  bloodGroup?: string;
+  location?: string;
+  medicalInfo?: string;
+  
+  // Staff-specific fields
+  specialization?: string;
+  department?: string;
+  experienceYears?: number;
+  assignedHospital?: string;
+  
+  // Admin-specific fields
+  adminLevel?: string;
+  
+  // Common fields
+  accountStatus: 'active' | 'suspended' | 'inactive';
+  createdAt: string;
+  lastLogin: string;
+}
+
+export interface ProfileUpdateData {
+  name?: string;
+  phone?: string;
+  email?: string;
+  avatarUrl?: string;
+  emergencyContact?: string;
+  medicalInfo?: string;
+  // Staff fields
+  specialization?: string;
+  department?: string;
 }
 
 export interface DemoCredential {

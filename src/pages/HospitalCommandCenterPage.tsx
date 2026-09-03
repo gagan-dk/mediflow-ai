@@ -61,8 +61,9 @@ export const HospitalCommandCenterPage: React.FC = () => {
   // RBAC: only hospital_staff and admin can manage pre-alerts
   const canManagePreAlerts = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
 
-  // RBAC: only hospital_staff and admin can manage queue and beds
+  // RBAC: hospital staff and admin can manage, all authenticated users can view
   const canManageOperations = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
+  const canViewOperations = ['patient', 'hospital_staff', 'admin', 'paramedic'].includes(currentUser.role);
 
   const primaryHospital = selectedHospital || hospitals[0]; // Use selected hospital or fallback to first
 

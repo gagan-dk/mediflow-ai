@@ -1,9 +1,10 @@
 import { Hospital, Bed } from '../types/hospital';
-import { Ambulance } from '../types/ambulance';
 import { SymptomOption } from '../types/prioritization';
+import { Ambulance } from '../types/ambulance';
 import { QueuePatient } from '../types/queue';
 import { HospitalPreAlert } from '../types/preAlert';
 
+// Symptom options for prioritization
 export const INITIAL_SYMPTOMS: SymptomOption[] = [
   {
     id: 'chest_pain',
@@ -124,200 +125,460 @@ export const INITIAL_SYMPTOMS: SymptomOption[] = [
   }
 ];
 
+// Helper to create a Hospital in the new format
+function createHospital(
+  id: string,
+  name: string,
+  type: Hospital['type'],
+  address: string,
+  lat: number,
+  lng: number,
+  distanceKm: number,
+  travelTimeMinutes: number,
+  trafficCondition: Hospital['trafficCondition'],
+  totalBeds: number,
+  availableBeds: number,
+  totalICUBeds: number,
+  availableICUBeds: number,
+  totalEmergencyBeds: number,
+  availableEmergencyBeds: number,
+  currentERLoadPercent: number,
+  estimatedWaitTimeMinutes: number,
+  phone: string,
+  rating: number,
+  specialties: string[],
+  emergencyAvailable = true,
+  oxygenSupport = true,
+  ventilatorAvailability = true,
+  traumaLevel: 1 | 2 | 3 | 0 = 1,
+  cardiacCareAvailable = true,
+  strokeUnitAvailable = true,
+  orthopedicAvailable = true,
+  pediatricAvailable = true,
+  ambulanceAvailableCount = 3,
+  isOpen = true
+): Hospital {
+  const hospitalId = id.replace('hosp-', 'hospital-') + '-001';
+  const lastUpdated = new Date().toISOString();
+  const occupiedBeds = totalBeds - availableBeds;
+  const occupiedICU = totalICUBeds - availableICUBeds;
+  const occupiedEmergency = totalEmergencyBeds - availableEmergencyBeds;
+  
+  return {
+    hospitalId,
+    id,
+    name,
+    type,
+    address,
+    coordinates: { lat, lng },
+    phone,
+    isOpen,
+    rating,
+    specialties,
+    emergencyAvailable,
+    icuAvailable: availableICUBeds > 0,
+    oxygenSupport,
+    ventilatorAvailability,
+    traumaLevel,
+    cardiacCareAvailable,
+    strokeUnitAvailable,
+    orthopedicAvailable,
+    pediatricAvailable,
+    ambulanceAvailableCount,
+    distanceKm,
+    travelTimeMinutes,
+    trafficCondition,
+    beds: {
+      total: totalBeds,
+      available: availableBeds,
+      occupied: occupiedBeds,
+      reserved: 0,
+    },
+    icu: {
+      total: totalICUBeds,
+      available: availableICUBeds,
+      occupied: occupiedICU,
+      reserved: 0,
+    },
+    emergencyRooms: {
+      total: totalEmergencyBeds,
+      available: availableEmergencyBeds,
+      occupied: occupiedEmergency,
+      cleaning: 0,
+    },
+    queue: {
+      totalPatients: Math.round(currentERLoadPercent * (totalEmergencyBeds + totalICUBeds) / 100),
+      criticalCount: Math.round(currentERLoadPercent / 4),
+      highCount: Math.round(currentERLoadPercent / 3),
+      moderateCount: Math.round(currentERLoadPercent / 2),
+      lowCount: Math.round(currentERLoadPercent / 4),
+      estimatedWaitTimeMinutes,
+      currentERLoadPercent,
+    },
+    ambulances: {
+      total: Math.max(1, ambulanceAvailableCount + 1),
+      available: ambulanceAvailableCount,
+      dispatched: 0,
+      enRoute: 0,
+      atHospital: 0,
+    },
+    doctors: {
+      total: 20,
+      available: 18,
+      onDuty: 16,
+      bySpecialization: {},
+    },
+    facilities: {
+      emergencyDepartment: emergencyAvailable,
+      icu: availableICUBeds > 0,
+      oxygenSupport,
+      ventilator: ventilatorAvailability,
+      traumaCare: traumaLevel > 0,
+      cardiacCare: cardiacCareAvailable,
+      strokeUnit: strokeUnitAvailable,
+      orthopedicSurgeon: orthopedicAvailable,
+      pediatricEmergency: pediatricAvailable,
+    },
+    lastUpdated,
+    updatedBy: 'system',
+    configComplete: true,
+    operationalDataAvailable: true,
+    // Alias properties for backward compatibility
+    availableICUBeds,
+    availableEmergencyBeds,
+    availableBeds,
+    totalBeds,
+    totalICUBeds,
+    totalEmergencyBeds,
+    currentERLoadPercent,
+    estimatedWaitTimeMinutes,
+  };
+}
+
 export const INITIAL_HOSPITALS: Hospital[] = [
-  {
-    id: 'hosp-citycare',
-    name: 'CityCare Medical Center',
-    type: 'Super Specialty',
-    address: '84 Metro Health Blvd, Central District',
-    distanceKm: 3.2,
-    travelTimeMinutes: 8,
-    trafficCondition: 'Low',
-    coordinates: { lat: 12.9716, lng: 77.5946 },
-    phone: '+91 80 4120 5500',
-    isOpen: true,
-    totalBeds: 220,
-    availableBeds: 42,
-    totalICUBeds: 24,
-    availableICUBeds: 5,
-    totalEmergencyBeds: 35,
-    availableEmergencyBeds: 9,
-    currentERLoadPercent: 42,
-    estimatedWaitTimeMinutes: 8,
-    emergencyAvailable: true,
-    icuAvailable: true,
-    oxygenSupport: true,
-    ventilatorAvailability: true,
-    traumaLevel: 1,
-    cardiacCareAvailable: true,
-    strokeUnitAvailable: true,
-    orthopedicAvailable: true,
-    pediatricAvailable: true,
-    ambulanceAvailableCount: 3,
-    rating: 4.8,
-    specialties: ['Cardiology', 'Emergency Medicine', 'Neurology', 'Pulmonology', 'Trauma Surgery']
-  },
-  {
-    id: 'hosp-metro-trauma',
-    name: 'Metro Trauma & Apex Institute',
-    type: 'Trauma Center Level 1',
-    address: '12 Expressway Junction, North Ring Rd',
-    distanceKm: 2.1,
-    travelTimeMinutes: 22, // Heavy traffic
-    trafficCondition: 'Heavy',
-    coordinates: { lat: 12.9850, lng: 77.6050 },
-    phone: '+91 80 2299 8800',
-    isOpen: true,
-    totalBeds: 310,
-    availableBeds: 18,
-    totalICUBeds: 30,
-    availableICUBeds: 0, // NO ICU currently
-    totalEmergencyBeds: 45,
-    availableEmergencyBeds: 2,
-    currentERLoadPercent: 94,
-    estimatedWaitTimeMinutes: 38,
-    emergencyAvailable: true,
-    icuAvailable: false, // Currently saturated
-    oxygenSupport: true,
-    ventilatorAvailability: true,
-    traumaLevel: 1,
-    cardiacCareAvailable: true,
-    strokeUnitAvailable: true,
-    orthopedicAvailable: true,
-    pediatricAvailable: false,
-    ambulanceAvailableCount: 1,
-    rating: 4.6,
-    specialties: ['Trauma & Orthopedics', 'Neurosurgery', 'Critical Care', 'Burn Unit']
-  },
-  {
-    id: 'hosp-lifeline',
-    name: 'LifeLine Super Specialty Hospital',
-    type: 'Super Specialty',
-    address: '405 Tech Park East Corridor',
-    distanceKm: 5.4,
-    travelTimeMinutes: 12,
-    trafficCondition: 'Low',
-    coordinates: { lat: 12.9560, lng: 77.6250 },
-    phone: '+91 80 6700 1122',
-    isOpen: true,
-    totalBeds: 180,
-    availableBeds: 36,
-    totalICUBeds: 18,
-    availableICUBeds: 4,
-    totalEmergencyBeds: 25,
-    availableEmergencyBeds: 7,
-    currentERLoadPercent: 48,
-    estimatedWaitTimeMinutes: 11,
-    emergencyAvailable: true,
-    icuAvailable: true,
-    oxygenSupport: true,
-    ventilatorAvailability: true,
-    traumaLevel: 2,
-    cardiacCareAvailable: true,
-    strokeUnitAvailable: true,
-    orthopedicAvailable: true,
-    pediatricAvailable: true,
-    ambulanceAvailableCount: 2,
-    rating: 4.7,
-    specialties: ['Cardiac Sciences', 'Neurology', 'Internal Medicine', 'Pediatrics']
-  },
-  {
-    id: 'hosp-st-jude',
-    name: 'St. Jude Memorial Hospital',
-    type: 'General Hospital',
-    address: '19 Heritage Road, West Extension',
-    distanceKm: 4.8,
-    travelTimeMinutes: 14,
-    trafficCondition: 'Moderate',
-    coordinates: { lat: 12.9420, lng: 77.5800 },
-    phone: '+91 80 2555 4321',
-    isOpen: true,
-    totalBeds: 140,
-    availableBeds: 28,
-    totalICUBeds: 12,
-    availableICUBeds: 2,
-    totalEmergencyBeds: 20,
-    availableEmergencyBeds: 5,
-    currentERLoadPercent: 62,
-    estimatedWaitTimeMinutes: 16,
-    emergencyAvailable: true,
-    icuAvailable: true,
-    oxygenSupport: true,
-    ventilatorAvailability: true,
-    traumaLevel: 2,
-    cardiacCareAvailable: false,
-    strokeUnitAvailable: false,
-    orthopedicAvailable: true,
-    pediatricAvailable: true,
-    ambulanceAvailableCount: 2,
-    rating: 4.5,
-    specialties: ['General Surgery', 'Obstetrics', 'Orthopedics', 'General Emergency']
-  },
-  {
-    id: 'hosp-apollo-apex',
-    name: 'Apex Heart & Vascular Institute',
-    type: 'Cardiac Center',
-    address: '100 South Boulevard, Medical Square',
-    distanceKm: 6.2,
-    travelTimeMinutes: 15,
-    trafficCondition: 'Low',
-    coordinates: { lat: 12.9250, lng: 77.5920 },
-    phone: '+91 80 4999 0000',
-    isOpen: true,
-    totalBeds: 160,
-    availableBeds: 30,
-    totalICUBeds: 20,
-    availableICUBeds: 6,
-    totalEmergencyBeds: 22,
-    availableEmergencyBeds: 6,
-    currentERLoadPercent: 51,
-    estimatedWaitTimeMinutes: 10,
-    emergencyAvailable: true,
-    icuAvailable: true,
-    oxygenSupport: true,
-    ventilatorAvailability: true,
-    traumaLevel: 2,
-    cardiacCareAvailable: true,
-    strokeUnitAvailable: true,
-    orthopedicAvailable: false,
-    pediatricAvailable: false,
-    ambulanceAvailableCount: 3,
-    rating: 4.9,
-    specialties: ['Interventional Cardiology', 'Cardiothoracic Surgery', 'Vascular Care', 'CCU']
-  },
-  {
-    id: 'hosp-community-west',
-    name: 'Westside Community Hospital',
-    type: 'Community Hospital',
-    address: '56 Green Avenue, West Park',
-    distanceKm: 7.0,
-    travelTimeMinutes: 18,
-    trafficCondition: 'Moderate',
-    coordinates: { lat: 12.9600, lng: 77.5450 },
-    phone: '+91 80 2341 9090',
-    isOpen: true,
-    totalBeds: 90,
-    availableBeds: 22,
-    totalICUBeds: 6,
-    availableICUBeds: 1,
-    totalEmergencyBeds: 14,
-    availableEmergencyBeds: 4,
-    currentERLoadPercent: 71,
-    estimatedWaitTimeMinutes: 20,
-    emergencyAvailable: true,
-    icuAvailable: true,
-    oxygenSupport: true,
-    ventilatorAvailability: false,
-    traumaLevel: 3,
-    cardiacCareAvailable: false,
-    strokeUnitAvailable: false,
-    orthopedicAvailable: true,
-    pediatricAvailable: true,
-    ambulanceAvailableCount: 1,
-    rating: 4.2,
-    specialties: ['Family Medicine', 'Basic Emergency', 'Pediatrics', 'Minor Trauma']
-  }
+  createHospital(
+    'hosp-citycare',
+    'CityCare Medical Center',
+    'Super Specialty',
+    '84 Metro Health Blvd, Central District',
+    12.9716, 77.5946,
+    3.2, 8, 'Low',
+    220, 42,
+    24, 5,
+    35, 9,
+    42, 8,
+    '+91 80 4120 5500',
+    4.8,
+    ['Cardiology', 'Emergency Medicine', 'Neurology', 'Pulmonology', 'Trauma Surgery']
+  ),
+  createHospital(
+    'hosp-metro-trauma',
+    'Metro Trauma & Apex Institute',
+    'Trauma Center Level 1',
+    '12 Expressway Junction, North Ring Rd',
+    12.9850, 77.6050,
+    2.1, 22, 'Heavy',
+    310, 18,
+    30, 0,
+    45, 2,
+    94, 38,
+    '+91 80 2299 8800',
+    4.6,
+    ['Trauma & Orthopedics', 'Neurosurgery', 'Critical Care', 'Burn Unit'],
+    true, true, true, 1, true, true, true, false
+  ),
+  createHospital(
+    'hosp-lifeline',
+    'LifeLine Super Specialty Hospital',
+    'Super Specialty',
+    '405 Tech Park East Corridor',
+    12.9560, 77.6250,
+    5.4, 12, 'Low',
+    180, 36,
+    18, 4,
+    25, 7,
+    48, 11,
+    '+91 80 6700 1122',
+    4.7,
+    ['Cardiac Sciences', 'Neurology', 'Internal Medicine', 'Pediatrics']
+  ),
+  createHospital(
+    'hosp-st-jude',
+    'St. Jude Memorial Hospital',
+    'General Hospital',
+    '19 Heritage Road, West Extension',
+    12.9420, 77.5800,
+    4.8, 14, 'Moderate',
+    140, 28,
+    12, 2,
+    20, 5,
+    62, 16,
+    '+91 80 2555 4321',
+    4.5,
+    ['General Surgery', 'Obstetrics', 'Orthopedics', 'General Emergency']
+  ),
+  createHospital(
+    'hosp-apollo-apex',
+    'Apex Heart & Vascular Institute',
+    'Cardiac Center',
+    '100 South Boulevard, Medical Square',
+    12.9250, 77.5920,
+    6.2, 15, 'Low',
+    160, 30,
+    20, 6,
+    22, 6,
+    51, 10,
+    '+91 80 4999 0000',
+    4.9,
+    ['Interventional Cardiology', 'Cardiothoracic Surgery', 'Vascular Care', 'CCU'],
+    true, true, true, 2, true, true, false, false
+  ),
+  createHospital(
+    'hosp-community-west',
+    'Westside Community Hospital',
+    'Community Hospital',
+    '56 Green Avenue, West Park',
+    12.9600, 77.5450,
+    7.0, 18, 'Moderate',
+    90, 22,
+    6, 1,
+    14, 4,
+    71, 20,
+    '+91 80 2341 9090',
+    4.2,
+    ['Family Medicine', 'Basic Emergency', 'Pediatrics', 'Minor Trauma'],
+    true, true, false, 3, false, false, true, true
+  ),
 ];
+
+// Attach the seeded doctor/room records to the primary demo hospital so the
+// patient-facing pages read the exact same doctor/room lists that staff manage.
+function attachSeedOperationalData() {
+  const cityCareSeed = INITIAL_HOSPITALS.find(h => h.id === 'hosp-citycare');
+  if (!cityCareSeed) return;
+  cityCareSeed.doctorList = INITIAL_DOCTORS as any;
+  cityCareSeed.roomsList = INITIAL_ROOMS as any;
+  cityCareSeed.doctors = {
+    total: INITIAL_DOCTORS.length,
+    available: INITIAL_DOCTORS.filter((d: any) => d.status === 'Available').length,
+    onDuty: INITIAL_DOCTORS.filter((d: any) => d.dutyStatus === 'On Duty').length,
+    bySpecialization: {},
+  };
+  cityCareSeed.emergencyRooms = {
+    total: INITIAL_ROOMS.filter((r: any) => r.type === 'Emergency Room').length,
+    available: INITIAL_ROOMS.filter((r: any) => r.type === 'Emergency Room' && r.status === 'Available').length,
+    occupied: INITIAL_ROOMS.filter((r: any) => r.type === 'Emergency Room' && r.status === 'Occupied').length,
+    cleaning: 0,
+  };
+}
+
+// Helper to convert Hospital to Bed[] for backward compatibility
+export function hospitalToBeds(hospital: Hospital): Bed[] {
+  if (hospital.bedList && hospital.bedList.length > 0) {
+    return hospital.bedList;
+  }
+  const beds: Bed[] = [];
+  const bedPrefix = hospital.name.split(' ').join('-').toLowerCase().slice(0, 8);
+  // ICU beds
+  for (let i = 1; i <= hospital.icu.total; i++) {
+    beds.push({
+      id: `bed-icu-${hospital.hospitalId}-${i}`,
+      hospitalId: hospital.hospitalId,
+      bedNumber: `${bedPrefix}-ICU-${i.toString().padStart(2, '0')}`,
+      wardType: 'ICU',
+      status: i <= hospital.icu.available ? 'Available' : i <= hospital.icu.available + hospital.icu.occupied ? 'Occupied' : 'Cleaning',
+      severity: i <= hospital.icu.available + hospital.icu.occupied ? 'CRITICAL' : undefined,
+      assignedDoctor: i <= 5 ? `Dr. Staff${i}` : undefined,
+      updatedAt: hospital.lastUpdated,
+    });
+  }
+  // General/Emergency beds
+  for (let i = 1; i <= hospital.beds.total; i++) {
+    beds.push({
+      id: `bed-gen-${hospital.hospitalId}-${i}`,
+      hospitalId: hospital.hospitalId,
+      bedNumber: `${bedPrefix}-B${i.toString().padStart(2, '0')}`,
+      wardType: i <= hospital.emergencyRooms.total ? 'Emergency' : 'General',
+      status: i <= hospital.beds.available ? 'Available' : i <= hospital.beds.available + hospital.beds.occupied ? 'Occupied' : 'Cleaning',
+      severity: i <= hospital.beds.available + hospital.beds.occupied ? 'HIGH' : undefined,
+      updatedAt: hospital.lastUpdated,
+    });
+  }
+  return beds;
+}
+
+export const INITIAL_BEDS: Bed[] = [];
+
+// Seed doctors & rooms for the primary demo hospital (CityCare). These live
+// INSIDE the hospital record (doctorList / roomsList) so Hospital Staff edits
+// and Patient reads share the exact same source of truth.
+export const INITIAL_DOCTORS = [
+  {
+    id: 'doc-1',
+    hospitalId: 'hospital-hosp-citycare-001',
+    name: 'Dr. Anil Kumar',
+    specialization: 'Cardiologist',
+    department: 'Cardiology',
+    experience: 12,
+    status: 'Available',
+    dutyStatus: 'On Duty',
+    room: 'Room 301',
+    emergencyAvailable: true,
+    consultationHours: '9 AM - 5 PM',
+    email: 'anil.kumar@hospital.com',
+    phone: '+91 9876543210',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'doc-2',
+    hospitalId: 'hospital-hosp-citycare-001',
+    name: 'Dr. Priya Sharma',
+    specialization: 'Neurologist',
+    department: 'Neurology',
+    experience: 8,
+    status: 'Busy',
+    dutyStatus: 'On Duty',
+    room: 'Room 205',
+    emergencyAvailable: true,
+    consultationHours: '10 AM - 6 PM',
+    email: 'priya.sharma@hospital.com',
+    phone: '+91 9876543211',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'doc-3',
+    hospitalId: 'hospital-hosp-citycare-001',
+    name: 'Dr. Rohit Sen',
+    specialization: 'Emergency Medicine Specialist',
+    department: 'Emergency Department',
+    experience: 10,
+    status: 'Available',
+    dutyStatus: 'On Duty',
+    room: 'Resus Bay 1',
+    emergencyAvailable: true,
+    consultationHours: '24x7',
+    email: 'rohit.sen@hospital.com',
+    phone: '+91 9876543212',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'doc-4',
+    hospitalId: 'hospital-hosp-citycare-001',
+    name: 'Dr. Kavitha Nair',
+    specialization: 'Pulmonologist',
+    department: 'Pulmonology',
+    experience: 7,
+    status: 'Available',
+    dutyStatus: 'On Duty',
+    room: 'Room 108',
+    emergencyAvailable: true,
+    consultationHours: '9 AM - 5 PM',
+    email: 'kavitha.nair@hospital.com',
+    phone: '+91 9876543213',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'doc-5',
+    hospitalId: 'hospital-hosp-citycare-001',
+    name: 'Dr. Meera Iyer',
+    specialization: 'Internist',
+    department: 'Internal Medicine',
+    experience: 15,
+    status: 'Available',
+    dutyStatus: 'On Duty',
+    room: 'Room 401',
+    emergencyAvailable: true,
+    consultationHours: '9 AM - 5 PM',
+    email: 'meera.iyer@hospital.com',
+    phone: '+91 9876543214',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  }
+] as any[];
+
+export const INITIAL_ROOMS = [
+  {
+    id: 'room-1',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'ER-01',
+    type: 'Emergency Room',
+    floor: 'Ground Floor',
+    department: 'Emergency Department',
+    capacity: 1,
+    currentOccupancy: 1,
+    status: 'Occupied',
+    assignedPatient: 'P-1042',
+    lastUpdated: new Date().toISOString()
+  },
+  {
+    id: 'room-2',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'ER-02',
+    type: 'Emergency Room',
+    floor: 'Ground Floor',
+    department: 'Emergency Department',
+    capacity: 1,
+    currentOccupancy: 0,
+    status: 'Available',
+    lastUpdated: new Date().toISOString()
+  },
+  {
+    id: 'room-3',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'ER-03',
+    type: 'Emergency Room',
+    floor: 'Ground Floor',
+    department: 'Emergency Department',
+    capacity: 1,
+    currentOccupancy: 0,
+    status: 'Available',
+    lastUpdated: new Date().toISOString()
+  },
+  {
+    id: 'room-4',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'ICU-01',
+    type: 'ICU',
+    floor: 'First Floor',
+    department: 'Critical Care',
+    capacity: 1,
+    currentOccupancy: 0,
+    status: 'Available',
+    lastUpdated: new Date().toISOString()
+  },
+  {
+    id: 'room-5',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'ICU-02',
+    type: 'ICU',
+    floor: 'First Floor',
+    department: 'Critical Care',
+    capacity: 1,
+    currentOccupancy: 1,
+    status: 'Occupied',
+    assignedPatient: 'P-1043',
+    lastUpdated: new Date().toISOString()
+  },
+  {
+    id: 'room-6',
+    hospitalId: 'hospital-hosp-citycare-001',
+    roomNumber: 'W-101',
+    type: 'General Ward',
+    floor: 'Second Floor',
+    department: 'General Medicine',
+    capacity: 4,
+    currentOccupancy: 2,
+    status: 'Available',
+    lastUpdated: new Date().toISOString()
+  }
+] as any[];
+
+// Seed the primary demo hospital with the shared doctor/room records.
+attachSeedOperationalData();
 
 export const INITIAL_AMBULANCES: Ambulance[] = [
   {
@@ -327,17 +588,13 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     driverPhone: '+91 98450 12345',
     paramedicName: 'Ananya Sharma (EMT-P)',
     status: 'Available',
-    currentLocation: {
-      lat: 12.9680,
-      lng: 77.5900,
-      address: 'Central Station Standby Bay 2'
-    },
+    currentLocation: { lat: 12.9680, lng: 77.5900, address: 'Central Station Standby Bay 2' },
     etaMinutes: 6,
     oxygenSupport: true,
     ventilatorSupport: true,
     defibrillator: true,
     advancedLifeSupport: true,
-    traumaKit: true
+    traumaKit: true,
   },
   {
     id: 'amb-2',
@@ -346,17 +603,13 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     driverPhone: '+91 98450 67890',
     paramedicName: 'David Paul (EMT-B)',
     status: 'Available',
-    currentLocation: {
-      lat: 12.9550,
-      lng: 77.6100,
-      address: 'Indiranagar Hub Standby'
-    },
+    currentLocation: { lat: 12.9550, lng: 77.6100, address: 'Indiranagar Hub Standby' },
     etaMinutes: 9,
     oxygenSupport: true,
     ventilatorSupport: false,
     defibrillator: true,
     advancedLifeSupport: false,
-    traumaKit: true
+    traumaKit: true,
   },
   {
     id: 'amb-3',
@@ -365,11 +618,7 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     driverPhone: '+91 98450 33445',
     paramedicName: 'Pooja Reddy (EMT-P)',
     status: 'En Route',
-    currentLocation: {
-      lat: 12.9810,
-      lng: 77.6020,
-      address: 'En route to Metro Trauma'
-    },
+    currentLocation: { lat: 12.9810, lng: 77.6020, address: 'En route to Metro Trauma' },
     destinationHospitalId: 'hosp-metro-trauma',
     destinationHospitalName: 'Metro Trauma & Apex Institute',
     assignedPatientId: 'P-1039',
@@ -380,7 +629,7 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     ventilatorSupport: true,
     defibrillator: true,
     advancedLifeSupport: true,
-    traumaKit: true
+    traumaKit: true,
   },
   {
     id: 'amb-4',
@@ -389,17 +638,13 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     driverPhone: '+91 98450 88991',
     paramedicName: 'Sneha Patel (EMT-P)',
     status: 'Available',
-    currentLocation: {
-      lat: 12.9300,
-      lng: 77.5850,
-      address: 'Jayanagar Emergency Standby'
-    },
+    currentLocation: { lat: 12.9300, lng: 77.5850, address: 'Jayanagar Emergency Standby' },
     etaMinutes: 11,
     oxygenSupport: true,
     ventilatorSupport: true,
     defibrillator: true,
     advancedLifeSupport: true,
-    traumaKit: true
+    traumaKit: true,
   },
   {
     id: 'amb-5',
@@ -408,11 +653,7 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     driverPhone: '+91 98450 55667',
     paramedicName: 'Ramesh Naik (EMT-B)',
     status: 'At Hospital',
-    currentLocation: {
-      lat: 12.9716,
-      lng: 77.5946,
-      address: 'CityCare ER Bay 1'
-    },
+    currentLocation: { lat: 12.9716, lng: 77.5946, address: 'CityCare ER Bay 1' },
     destinationHospitalId: 'hosp-citycare',
     destinationHospitalName: 'CityCare Medical Center',
     etaMinutes: 0,
@@ -420,28 +661,8 @@ export const INITIAL_AMBULANCES: Ambulance[] = [
     ventilatorSupport: false,
     defibrillator: true,
     advancedLifeSupport: false,
-    traumaKit: true
+    traumaKit: true,
   }
-];
-
-export const INITIAL_BEDS: Bed[] = [
-  // CityCare ER & ICU Beds
-  { id: 'b-er-101', hospitalId: 'hosp-citycare', bedNumber: 'ER-01', wardType: 'Emergency', status: 'Occupied', patientId: 'P-1021', patientName: 'Arun V.', severity: 'CRITICAL', assignedDoctor: 'Dr. Priya Rao', updatedAt: '10 min ago' },
-  { id: 'b-er-102', hospitalId: 'hosp-citycare', bedNumber: 'ER-02', wardType: 'Emergency', status: 'Occupied', patientId: 'P-1025', patientName: 'Kiran B.', severity: 'HIGH', assignedDoctor: 'Dr. Priya Rao', updatedAt: '25 min ago' },
-  { id: 'b-er-103', hospitalId: 'hosp-citycare', bedNumber: 'ER-03', wardType: 'Emergency', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-er-104', hospitalId: 'hosp-citycare', bedNumber: 'ER-04', wardType: 'Emergency', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-er-105', hospitalId: 'hosp-citycare', bedNumber: 'ER-05', wardType: 'Emergency', status: 'Cleaning', updatedAt: '5 min ago' },
-  { id: 'b-er-106', hospitalId: 'hosp-citycare', bedNumber: 'ER-06', wardType: 'Emergency', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-er-107', hospitalId: 'hosp-citycare', bedNumber: 'ER-07', wardType: 'Emergency', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-er-108', hospitalId: 'hosp-citycare', bedNumber: 'ER-08', wardType: 'Emergency', status: 'Occupied', patientId: 'P-1030', patientName: 'Meena S.', severity: 'MODERATE', assignedDoctor: 'Dr. Rohit Sen', updatedAt: '1 hour ago' },
-  
-  // CityCare ICU Beds
-  { id: 'b-icu-201', hospitalId: 'hosp-citycare', bedNumber: 'ICU-01', wardType: 'ICU', status: 'Occupied', patientId: 'P-1008', patientName: 'Devdas R.', severity: 'CRITICAL', assignedDoctor: 'Dr. Sunita Kulkarni', updatedAt: '3 hours ago' },
-  { id: 'b-icu-202', hospitalId: 'hosp-citycare', bedNumber: 'ICU-02', wardType: 'ICU', status: 'Occupied', patientId: 'P-1014', patientName: 'Gita M.', severity: 'CRITICAL', assignedDoctor: 'Dr. Sunita Kulkarni', updatedAt: '5 hours ago' },
-  { id: 'b-icu-203', hospitalId: 'hosp-citycare', bedNumber: 'ICU-03', wardType: 'ICU', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-icu-204', hospitalId: 'hosp-citycare', bedNumber: 'ICU-04', wardType: 'ICU', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-icu-205', hospitalId: 'hosp-citycare', bedNumber: 'ICU-05', wardType: 'ICU', status: 'Available', updatedAt: 'Just now' },
-  { id: 'b-icu-206', hospitalId: 'hosp-citycare', bedNumber: 'ICU-06', wardType: 'ICU', status: 'Reserved', patientName: 'Reserved for Incoming Pre-Alert', severity: 'CRITICAL', updatedAt: '2 min ago' }
 ];
 
 export const INITIAL_QUEUE_PATIENTS: QueuePatient[] = [
@@ -576,3 +797,56 @@ export const INITIAL_PRE_ALERTS: HospitalPreAlert[] = [
     }
   }
 ];
+
+export const SPECIALIZATION_DESCRIPTIONS: Record<string, string> = {
+  'Cardiologist': 'Heart diseases',
+  'Cardiothoracic Surgeon': 'Surgery of heart, lungs & chest',
+  'Neurologist': 'Brain, spinal cord & nerves',
+  'Neurosurgeon': 'Surgery of brain & nervous system',
+  'Nephrologist': 'Kidneys',
+  'Urologist': 'Urinary system & male reproductive system',
+  'Gastroenterologist': 'Stomach, intestine, liver & digestive system',
+  'Hepatologist': 'Liver diseases',
+  'Pulmonologist': 'Lungs & respiratory diseases',
+  'Endocrinologist': 'Hormones, thyroid, diabetes',
+  'Diabetologist': 'Diabetes',
+  'Rheumatologist': 'Arthritis & autoimmune joint diseases',
+  'Orthopedic Surgeon': 'Bones, joints & muscles',
+  'General Surgeon': 'General surgical conditions',
+  'Plastic Surgeon': 'Reconstruction & cosmetic surgery',
+  'Dermatologist': 'Skin, hair & nails',
+  'Ophthalmologist': 'Eyes & eye surgery',
+  'ENT Specialist': 'Ear, nose & throat',
+  'Gynecologist': 'Female reproductive system',
+  'Obstetrician': 'Pregnancy & childbirth',
+  'Pediatrician': 'Children',
+  'Neonatologist': 'Newborn babies, especially critically ill/preterm babies',
+  'Psychiatrist': 'Mental health & psychiatric disorders',
+  'Psychologist': 'Mental health assessment & therapy',
+  'Oncologist': 'Cancer',
+  'Hematologist': 'Blood disorders',
+  'Infectious Disease Specialist': 'Infections',
+  'Allergist/Immunologist': 'Allergies & immune-system disorders',
+  'Anesthesiologist': 'Anesthesia, pain management & perioperative care',
+  'Emergency Medicine Specialist': 'Medical emergencies',
+  'Radiologist': 'CT, MRI, X-ray, ultrasound & image-guided procedures',
+  'Pathologist': 'Diagnosis using blood, tissue & laboratory tests',
+  'Geriatrician': 'Health of older adults',
+  'Physician/Internist': 'Adult medical conditions without surgery',
+  'Family Medicine Doctor': 'Comprehensive care for individuals/families',
+  'Vascular Surgeon': 'Blood vessels/arteries & veins',
+  'Colorectal Surgeon': 'Colon, rectum & anus',
+  'Bariatric Surgeon': 'Weight-loss/metabolic surgery',
+  'Surgical Oncologist': 'Cancer surgery',
+  'Interventional Cardiologist': 'Angioplasty, stents, cardiac catheterization',
+  'Electrophysiologist': 'Heart rhythm disorders',
+  'Cardiac Electrophysiologist': 'Arrhythmias, ablation & pacemakers'
+};
+
+export const ROOM_STATUS_COLORS: Record<string, { bg: string; text: string; border: string; icon: string }> = {
+  'Available': { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', icon: '🟢' },
+  'Reserved': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: '🟡' },
+  'Occupied': { bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200', icon: '🔴' },
+  'Cleaning': { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', icon: '🔵' },
+  'Maintenance': { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', icon: '⚫' }
+};

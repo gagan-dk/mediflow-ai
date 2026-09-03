@@ -48,6 +48,47 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
     }
   };
 
+  if (queuePatients.length === 0) {
+    return (
+      <div className="max-w-5xl mx-auto space-y-8 pb-16">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-bold">
+              <Clock className="w-3.5 h-3.5" />
+              <span>Live Emergency Queue &amp; Token Engine</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              Live Hospital Queue Tracker
+            </h1>
+            <p className="text-xs text-slate-500">
+              No patients are currently registered in the queue.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => navigate('/assessment')}
+              className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs shadow-md transition"
+            >
+              <ArrowRight className="w-3.5 h-3.5" />
+              <span>Start Emergency Assessment</span>
+            </button>
+          </div>
+        </div>
+
+        <DisclaimerBanner compact />
+
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+          <Ticket className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+          <h3 className="text-lg font-bold text-slate-900 mb-2">No Active Queue</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
+            Complete an emergency assessment to receive your priority queue token and view live wait times.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
       {/* Header */}

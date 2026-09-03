@@ -48,17 +48,19 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
   const [existingConditions, setExistingConditions] = useState<string[]>(['Hypertension']);
   const [notes, setNotes] = useState('Sudden onset crushing retrosternal chest pain with cold sweats.');
 
-  // Vitals State
-  const [showVitals, setShowVitals] = useState(true);
-  const [heartRate, setHeartRate] = useState<number>(118);
-  const [bpSystolic, setBpSystolic] = useState<number>(165);
-  const [bpDiastolic, setBpDiastolic] = useState<number>(98);
-  const [spO2, setSpO2] = useState<number>(91);
-  const [temp, setTemp] = useState<number>(37.2);
-  const [uploadedFile, setUploadedFile] = useState<string>('ECG_lead2_strip.pdf');
+  // Vitals State (optional, defaults to zero)
+  const [showVitals, setShowVitals] = useState(false);
+  const [heartRate, setHeartRate] = useState<number>(0);
+  const [bpSystolic, setBpSystolic] = useState<number>(0);
+  const [bpDiastolic, setBpDiastolic] = useState<number>(0);
+  const [spO2, setSpO2] = useState<number>(0);
+  const [temp, setTemp] = useState<number>(0);
+  const [uploadedFile, setUploadedFile] = useState<string>('none');
 
   // Quick Preset Handlers
   const applyPreset = (type: 'cardiac' | 'asthma' | 'stroke' | 'trauma' | 'fever' | 'minor') => {
+    // Presets include vitals, so show the vitals section
+    setShowVitals(true);
     if (type === 'cardiac') {
       setPatientName('Ramesh Sundaram');
       setAge(48);
@@ -159,6 +161,8 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
       return;
     }
 
+    const hasVitalsData = showVitals && (heartRate > 0 || bpSystolic > 0 || bpDiastolic > 0 || spO2 > 0 || temp > 0);
+
     const inputData: EmergencyAssessmentInput = {
       patientName,
       age,
@@ -169,14 +173,14 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
       painScale,
       consciousness,
       existingConditions,
-      vitals: showVitals ? {
+      vitals: hasVitalsData ? {
         heartRateBpm: heartRate,
         bloodPressureSystolic: bpSystolic,
         bloodPressureDiastolic: bpDiastolic,
         oxygenSaturationSpO2: spO2,
         temperatureCelsius: temp
       } : undefined,
-      uploadedDocumentName: uploadedFile,
+      uploadedDocumentName: uploadedFile !== 'none' ? uploadedFile : undefined,
       notes
     };
 
@@ -450,80 +454,90 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
 
         {/* Section 4: Optional Vitals Telemetry */}
         <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-          <div className="flex items-center justify-between">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
-              <HeartPulse className="w-4 h-4 text-brand-600" />
-              4. Patient Vitals Telemetry (Optional / EMS Feed)
-            </h4>
-            <button
-              type="button"
-              onClick={() => setShowVitals(!showVitals)}
-              className="text-xs text-brand-600 font-semibold hover:underline"
-            >
-              {showVitals ? 'Hide Vitals' : 'Show Vitals'}
-            </button>
-          </div>
-
-          {showVitals && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-500 block font-medium">Heart Rate (BPM)</span>
-                <input
-                  type="number"
-                  value={heartRate}
-                  onChange={e => setHeartRate(parseInt(e.target.value) || 0)}
-                  className="w-full text-base font-bold font-mono text-slate-900 mt-1 focus:outline-none"
-                />
-                <span className="text-[9px] text-slate-400">Normal: 60-100</span>
-              </div>
-
-              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-500 block font-medium">BP (Systolic / Diastolic)</span>
-                <div className="flex items-center gap-1 mt-1 font-mono text-base font-bold text-slate-900">
-                  <input
-                    type="number"
-                    value={bpSystolic}
-                    onChange={e => setBpSystolic(parseInt(e.target.value) || 0)}
-                    className="w-12 focus:outline-none"
-                  />
-                  <span>/</span>
-                  <input
-                    type="number"
-                    value={bpDiastolic}
-                    onChange={e => setBpDiastolic(parseInt(e.target.value) || 0)}
-                    className="w-12 focus:outline-none"
-                  />
-                </div>
-                <span className="text-[9px] text-slate-400">Normal: 120/80</span>
-              </div>
-
-              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-500 block font-medium">Oxygen SpO2 (%)</span>
-                <input
-                  type="number"
-                  value={spO2}
-                  onChange={e => setSpO2(parseInt(e.target.value) || 0)}
-                  className={`w-full text-base font-bold font-mono mt-1 focus:outline-none ${
-                    spO2 < 92 ? 'text-red-600' : 'text-slate-900'
-                  }`}
-                />
-                <span className="text-[9px] text-slate-400">Normal: 95-100%</span>
-              </div>
-
-              <div className="p-3 bg-white rounded-lg border border-slate-200">
-                <span className="text-[10px] text-slate-500 block font-medium">Temp (°C)</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  value={temp}
-                  onChange={e => setTemp(parseFloat(e.target.value) || 0)}
-                  className="w-full text-base font-bold font-mono text-slate-900 mt-1 focus:outline-none"
-                />
-                <span className="text-[9px] text-slate-400">Normal: 36.5-37.5</span>
-              </div>
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+                <HeartPulse className="w-4 h-4 text-brand-600" />
+                4. Patient Vitals Telemetry <span className="text-amber-600 font-semibold normal-case">(Optional)</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setShowVitals(!showVitals)}
+                className="text-xs text-brand-600 font-semibold hover:underline"
+              >
+                {showVitals ? 'Hide Vitals' : 'Add Vitals'}
+              </button>
             </div>
-          )}
-        </div>
+
+            {showVitals && (
+              <>
+                <p className="text-[11px] text-slate-500">
+                  Enter vitals if available. Leave values at 0 to skip. Vitals are not required for prioritization.
+                </p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Heart Rate (BPM)</span>
+                  <input
+                    type="number"
+                    value={heartRate || ''}
+                    onChange={e => setHeartRate(parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full text-base font-bold font-mono text-slate-900 mt-1 focus:outline-none placeholder:text-slate-300"
+                  />
+                  <span className="text-[9px] text-slate-400">Normal: 60-100</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">BP (Systolic / Diastolic)</span>
+                  <div className="flex items-center gap-1 mt-1 font-mono text-base font-bold text-slate-900">
+                    <input
+                      type="number"
+                      value={bpSystolic || ''}
+                      onChange={e => setBpSystolic(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-12 focus:outline-none placeholder:text-slate-300"
+                    />
+                    <span>/</span>
+                    <input
+                      type="number"
+                      value={bpDiastolic || ''}
+                      onChange={e => setBpDiastolic(parseInt(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-12 focus:outline-none placeholder:text-slate-300"
+                    />
+                  </div>
+                  <span className="text-[9px] text-slate-400">Normal: 120/80</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Oxygen SpO2 (%)</span>
+                  <input
+                    type="number"
+                    value={spO2 || ''}
+                    onChange={e => setSpO2(parseInt(e.target.value) || 0)}
+                    placeholder="0"
+                    className={`w-full text-base font-bold font-mono mt-1 focus:outline-none placeholder:text-slate-300 ${
+                      spO2 > 0 && spO2 < 92 ? 'text-red-600' : 'text-slate-900'
+                    }`}
+                  />
+                  <span className="text-[9px] text-slate-400">Normal: 95-100%</span>
+                </div>
+
+                <div className="p-3 bg-white rounded-lg border border-slate-200">
+                  <span className="text-[10px] text-slate-500 block font-medium">Temp (°C)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={temp || ''}
+                    onChange={e => setTemp(parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    className="w-full text-base font-bold font-mono text-slate-900 mt-1 focus:outline-none placeholder:text-slate-300"
+                  />
+                  <span className="text-[9px] text-slate-400">Normal: 36.5-37.5</span>
+                </div>
+              </div>
+              </>
+            )}
+          </div>
 
         {/* Section 5: Clinical Notes & Document Upload */}
         <div className="space-y-3">

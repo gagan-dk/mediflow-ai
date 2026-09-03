@@ -17,10 +17,12 @@ import {
   Calendar,
   Shield
 } from 'lucide-react';
-import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus, SPECIALIZATION_DESCRIPTIONS } from '../types/doctor';
+import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus } from '../types/hospital';
+import { SPECIALIZATION_DESCRIPTIONS } from '../services/mockData';
 
 interface DoctorManagementProps {
   doctors: Doctor[];
+  hospitalId?: string;
   onAddDoctor: (doctor: Omit<Doctor, 'id'>) => void;
   onUpdateDoctor: (id: string, updates: Partial<Doctor>) => void;
   onRemoveDoctor: (id: string) => void;
@@ -28,6 +30,7 @@ interface DoctorManagementProps {
 
 export const DoctorManagement: React.FC<DoctorManagementProps> = ({
   doctors,
+  hospitalId = 'hosp-citycare',
   onAddDoctor,
   onUpdateDoctor,
   onRemoveDoctor
@@ -61,6 +64,7 @@ export const DoctorManagement: React.FC<DoctorManagementProps> = ({
     const formData = new FormData(e.currentTarget);
     
     const doctorData: Omit<Doctor, 'id'> = {
+      hospitalId,
       name: formData.get('name') as string,
       specialization: formData.get('specialization') as DoctorSpecialization,
       department: formData.get('department') as string,
@@ -71,7 +75,9 @@ export const DoctorManagement: React.FC<DoctorManagementProps> = ({
       emergencyAvailable: formData.get('emergencyAvailable') === 'true',
       consultationHours: formData.get('consultationHours') as string,
       email: formData.get('email') as string,
-      phone: formData.get('phone') as string
+      phone: formData.get('phone') as string,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
 
     if (editingDoctor) {
