@@ -379,29 +379,38 @@ export function hospitalToBeds(hospital: Hospital): Bed[] {
   }
   const beds: Bed[] = [];
   const bedPrefix = hospital.name.split(' ').join('-').toLowerCase().slice(0, 8);
+
+  const icuTotal = hospital.icu?.total ?? hospital.totalICUBeds ?? 0;
+  const icuAvailable = hospital.icu?.available ?? hospital.availableICUBeds ?? 0;
+  const icuOccupied = hospital.icu?.occupied ?? (icuTotal - icuAvailable);
+  const bedsTotal = hospital.beds?.total ?? hospital.totalBeds ?? 0;
+  const bedsAvailable = hospital.beds?.available ?? hospital.availableBeds ?? 0;
+  const bedsOccupied = hospital.beds?.occupied ?? (bedsTotal - bedsAvailable);
+  const erTotal = hospital.emergencyRooms?.total ?? hospital.totalEmergencyBeds ?? 0;
+
   // ICU beds
-  for (let i = 1; i <= hospital.icu.total; i++) {
+  for (let i = 1; i <= icuTotal; i++) {
     beds.push({
       id: `bed-icu-${hospital.hospitalId}-${i}`,
       hospitalId: hospital.hospitalId,
       bedNumber: `${bedPrefix}-ICU-${i.toString().padStart(2, '0')}`,
       wardType: 'ICU',
-      status: i <= hospital.icu.available ? 'Available' : i <= hospital.icu.available + hospital.icu.occupied ? 'Occupied' : 'Cleaning',
-      severity: i <= hospital.icu.available + hospital.icu.occupied ? 'CRITICAL' : undefined,
+      status: i <= icuAvailable ? 'Available' : i <= icuAvailable + icuOccupied ? 'Occupied' : 'Cleaning',
+      severity: i <= icuAvailable + icuOccupied ? 'CRITICAL' : undefined,
       assignedDoctor: i <= 5 ? `Dr. Staff${i}` : undefined,
-      updatedAt: hospital.lastUpdated,
+      updatedAt: hospital.lastUpdated || new Date().toISOString(),
     });
   }
   // General/Emergency beds
-  for (let i = 1; i <= hospital.beds.total; i++) {
+  for (let i = 1; i <= bedsTotal; i++) {
     beds.push({
       id: `bed-gen-${hospital.hospitalId}-${i}`,
       hospitalId: hospital.hospitalId,
       bedNumber: `${bedPrefix}-B${i.toString().padStart(2, '0')}`,
-      wardType: i <= hospital.emergencyRooms.total ? 'Emergency' : 'General',
-      status: i <= hospital.beds.available ? 'Available' : i <= hospital.beds.available + hospital.beds.occupied ? 'Occupied' : 'Cleaning',
-      severity: i <= hospital.beds.available + hospital.beds.occupied ? 'HIGH' : undefined,
-      updatedAt: hospital.lastUpdated,
+      wardType: i <= erTotal ? 'Emergency' : 'General',
+      status: i <= bedsAvailable ? 'Available' : i <= bedsAvailable + bedsOccupied ? 'Occupied' : 'Cleaning',
+      severity: i <= bedsAvailable + bedsOccupied ? 'HIGH' : undefined,
+      updatedAt: hospital.lastUpdated || new Date().toISOString(),
     });
   }
   return beds;

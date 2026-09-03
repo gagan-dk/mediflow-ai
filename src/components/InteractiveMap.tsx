@@ -45,10 +45,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const { userLiveLocation, detectUserLiveLocation, isLocatingUser } = useApp();
 
   const activeUserLocation = patientLocation || {
-    lat: userLiveLocation.lat,
-    lng: userLiveLocation.lng,
-    address: userLiveLocation.address,
-    city: userLiveLocation.city
+    lat: userLiveLocation.lat || 12.9716,
+    lng: userLiveLocation.lng || 77.5946,
+    address: userLiveLocation.address || 'Bangalore, India',
+    city: userLiveLocation.city || 'Bangalore'
   };
 
   const [activeHospital, setActiveHospital] = useState<Hospital | null>(
@@ -71,14 +71,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   }, [selectedHospitalId, hospitals]);
 
-  // Dynamic coordinate bounds calculation based on actual live user & hospital coordinates
-  const allLats = [activeUserLocation.lat, ...hospitals.map(h => h.coordinates.lat)];
-  const allLngs = [activeUserLocation.lng, ...hospitals.map(h => h.coordinates.lng)];
+   // Dynamic coordinate bounds calculation based on actual live user & hospital coordinates
+   const validHospitals = hospitals.filter(h => h.coordinates?.lat && h.coordinates?.lng);
+   const allLats = activeUserLocation.lat ? [activeUserLocation.lat, ...validHospitals.map(h => h.coordinates.lat)] : validHospitals.map(h => h.coordinates.lat);
+   const allLngs = activeUserLocation.lng ? [activeUserLocation.lng, ...validHospitals.map(h => h.coordinates.lng)] : validHospitals.map(h => h.coordinates.lng);
 
-  const minLat = Math.min(...allLats) - 0.015;
-  const maxLat = Math.max(...allLats) + 0.015;
-  const minLng = Math.min(...allLngs) - 0.02;
-  const maxLng = Math.max(...allLngs) + 0.02;
+   const validLats = allLats.filter(lat => !isNaN(lat) && lat !== 0);
+   const validLngs = allLngs.filter(lng => !isNaN(lng) && lng !== 0);
+
+   const minLat = validLats.length > 0 ? Math.min(...validLats) - 0.015 : 12.9716 - 0.015;
+   const maxLat = validLats.length > 0 ? Math.max(...validLats) + 0.015 : 12.9716 + 0.015;
+   const minLng = validLngs.length > 0 ? Math.min(...validLngs) - 0.02 : 77.5946 - 0.02;
+   const maxLng = validLngs.length > 0 ? Math.max(...validLngs) + 0.02 : 77.5946 + 0.02;
 
   const latToPercent = (lat: number) => {
     const span = maxLat - minLat || 0.05;
@@ -116,7 +120,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   return (
     <div className={`relative bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-slate-700/80 flex flex-col ${className}`}>
-      {/* Top Map Mode & Control Bar */}
+      {/* If no hospitals and no active hospital selected, show fallback */}
+      {(!hospitals || hospitals.length === 0) && !activeHospital && (
+        <div className="flex-1 flex items-center justify-center p-6 text-center space-y-4">
+          <div className="text-slate-300 space-y-2">
+            <p className="text-sm font-semibold">Map data loading...</p>
+            <p className="text-xs text-slate-400">Please wait while hospitals and location data are being prepared.</p>
+          </div>
+        </div>
+      )}
+
+      {(hospitals && hospitals.length > 0) || activeHospital && (
+      <>
       <div className="bg-slate-950/90 backdrop-blur-md px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 z-20">
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white/10 text-white rounded-lg text-xs font-bold">
@@ -411,7 +426,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <span>Open in Google Maps App</span>
           <ExternalLink className="w-3 h-3" />
         </a>
-      </div>
-    </div>
-  );
-};
+       </div>
+       </>
+       )}
+     </div>
+   );
+ };
