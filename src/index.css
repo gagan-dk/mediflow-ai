@@ -13,6 +13,27 @@
   }
 }
 
+/* ─── Dark Theme (activated via .dark on <html>) ───────────────────────────── */
+.dark {
+  color-scheme: dark;
+}
+
+.dark body {
+  @apply bg-slate-950 text-slate-100;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 /* Glassmorphism & Custom Accents */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);

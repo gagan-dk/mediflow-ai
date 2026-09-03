@@ -34,6 +34,7 @@ export interface UserProfile {
   accountStatus: 'active' | 'suspended' | 'inactive';
   createdAt: string;
   lastLogin: string;
+  theme?: 'light' | 'dark';
 }
 
 export interface ProfileUpdateData {

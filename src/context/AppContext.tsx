@@ -83,6 +83,8 @@ interface AppContextType {
   currentUser: UserProfile;
   setUserRole: (role: UserRole) => void;
   updateProfile: (updates: Partial<UserProfile>) => void;
+  theme: 'light' | 'dark';
+  setTheme: (theme: 'light' | 'dark') => void;
 
   // Live User Location & Geolocation
   userLiveLocation: UserGeoLocation;
@@ -196,6 +198,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     lastLogin: new Date().toISOString(),
     avatarInitials: 'PR'
   });
+
+  // Theme preference (light/dark), applied to <html> root
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('mediflow-theme');
+    return stored === 'dark' ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('mediflow-theme', theme);
+    setCurrentUser(prev => ({ ...prev, theme }));
+  }, [theme]);
+
+  const setTheme = (next: 'light' | 'dark') => {
+    setThemeState(next);
+    soundFX.playChime();
+  };
 
   // Live Location state - will be updated with real GPS coordinates
   const [userLiveLocation, setUserLiveLocation] = useState<UserGeoLocation>({
@@ -1082,6 +1106,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         currentUser,
         setUserRole,
         updateProfile,
+        theme,
+        setTheme,
         userLiveLocation,
         detectUserLiveLocation,
         isLocatingUser,

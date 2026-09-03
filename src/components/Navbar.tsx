@@ -167,7 +167,10 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
                            </span>
                          </button>
                          <button
-                           onClick={() => setIsProfileDropdownOpen(false)}
+                           onClick={() => {
+                             handleNavClick('/settings');
+                             setIsProfileDropdownOpen(false);
+                           }}
                            className="w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50"
                          >
                            <span className="flex items-center gap-2">
@@ -305,6 +308,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
                 >
                   <User className="w-4 h-4 text-slate-500" />
                   <span>Profile</span>
+                </button>
+                <button
+                  onClick={() => handleNavClick('/settings')}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium text-slate-700 hover:bg-slate-50 transition"
+                >
+                  <Settings className="w-4 h-4 text-slate-500" />
+                  <span>Settings</span>
                 </button>
                 <button
                   onClick={() => {

@@ -19,6 +19,7 @@ import { PrivacySecurityPage } from './pages/PrivacySecurityPage';
 import { LoginPage } from './pages/LoginPage';
 import { HospitalManagementPage } from './pages/HospitalManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
@@ -55,6 +56,8 @@ const AppContent: React.FC = () => {
         return <HospitalManagementPage navigate={navigate} />;
       case '/profile':
         return <ProfilePage />;
+      case '/settings':
+        return <SettingsPage />;
       default:
         return <LandingPage navigate={navigate} />;
     }
@@ -71,7 +74,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-brand-500 selection:text-white dark:bg-slate-950 dark:text-slate-100">
       {/* Top Pre-Alert Emergency Active Banner */}
       <PreAlertBanner />
 
