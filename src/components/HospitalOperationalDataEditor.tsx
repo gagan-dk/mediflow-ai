@@ -87,43 +87,38 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
     setFacilities(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleSave = () => {
-    // ICU
-    updateHospitalICU(hospital.hospitalId, {
-      total: icuTotal,
-      available: Math.min(icuAvailable, icuTotal),
-      occupied: Math.max(0, icuTotal - icuAvailable),
-      reserved: 0,
-    });
-    // General beds
-    updateHospitalBeds(hospital.hospitalId, {
-      total: bedTotal,
-      available: Math.min(bedAvailable, bedTotal),
-      occupied: Math.max(0, bedTotal - bedAvailable),
-      reserved: 0,
-    });
-    // Emergency rooms
-    updateHospitalEmergencyRooms(hospital.hospitalId, {
-      total: erTotal,
-      available: Math.min(erAvailable, erTotal),
-      occupied: Math.max(0, erTotal - erAvailable),
-      cleaning: 0,
-    });
-    // Queue / wait time / ER load
-    updateHospitalQueue(hospital.hospitalId, {
-      estimatedWaitTimeMinutes: waitMinutes,
-      currentERLoadPercent: Math.min(100, erLoad),
-      totalPatients: Math.max(0, Math.round((erLoad / 100) * (erTotal + icuTotal))),
-    });
-    // Ambulances
-    updateHospitalAmbulances(hospital.hospitalId, {
-      available: ambulancesAvailable,
-      total: Math.max(ambulancesAvailable, hospital.ambulances?.total ?? ambulancesAvailable),
-    });
-    // Facilities
-    updateHospitalCapabilities(hospital.hospitalId, facilities);
-    // Ensure the record is flagged as staff-verified operational data
-    const latest = updateHospital({
+  const handleSave = async () => {
+     await Promise.all([
+      updateHospitalICU(hospital.hospitalId, {
+        total: icuTotal,
+        available: Math.min(icuAvailable, icuTotal),
+        occupied: Math.max(0, icuTotal - icuAvailable),
+        reserved: 0,
+      }),
+      updateHospitalBeds(hospital.hospitalId, {
+        total: bedTotal,
+        available: Math.min(bedAvailable, bedTotal),
+        occupied: Math.max(0, bedTotal - bedAvailable),
+        reserved: 0,
+      }),
+      updateHospitalEmergencyRooms(hospital.hospitalId, {
+        total: erTotal,
+        available: Math.min(erAvailable, erTotal),
+        occupied: Math.max(0, erTotal - erAvailable),
+        cleaning: 0,
+      }),
+      updateHospitalQueue(hospital.hospitalId, {
+        estimatedWaitTimeMinutes: waitMinutes,
+        currentERLoadPercent: Math.min(100, erLoad),
+        totalPatients: Math.max(0, Math.round((erLoad / 100) * (erTotal + icuTotal))),
+      }),
+      updateHospitalAmbulances(hospital.hospitalId, {
+        available: ambulancesAvailable,
+        total: Math.max(ambulancesAvailable, hospital.ambulances?.total ?? ambulancesAvailable),
+      }),
+      updateHospitalCapabilities(hospital.hospitalId, facilities),
+    ]);
+    const latest = await updateHospital({
       ...hospital,
       operationalDataAvailable: true,
     });

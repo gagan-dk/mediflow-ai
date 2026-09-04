@@ -135,19 +135,19 @@ interface AppContextType {
 
   // Centralized Hospital Service
   getHospitalById: (hospitalId: string) => Hospital | null;
-  updateHospital: (hospital: Hospital) => Hospital;
-  updateHospitalBeds: (hospitalId: string, data: Partial<Hospital['beds']>) => void;
-  updateHospitalICU: (hospitalId: string, data: Partial<Hospital['icu']>) => void;
-  updateHospitalEmergencyRooms: (hospitalId: string, data: Partial<Hospital['emergencyRooms']>) => void;
-  updateHospitalQueue: (hospitalId: string, data: Partial<Hospital['queue']>) => void;
+  updateHospital: (hospital: Hospital) => Promise<Hospital>;
+  updateHospitalBeds: (hospitalId: string, data: Partial<Hospital['beds']>) => Promise<void>;
+  updateHospitalICU: (hospitalId: string, data: Partial<Hospital['icu']>) => Promise<void>;
+  updateHospitalEmergencyRooms: (hospitalId: string, data: Partial<Hospital['emergencyRooms']>) => Promise<void>;
+  updateHospitalQueue: (hospitalId: string, data: Partial<Hospital['queue']>) => Promise<void>;
   updateHospitalDoctors: (hospitalId: string, data: Partial<Hospital['doctors']>) => void;
-  updateHospitalAmbulances: (hospitalId: string, data: Partial<Hospital['ambulances']>) => void;
-  updateHospitalCapabilities: (hospitalId: string, data: Partial<Hospital['facilities']>) => void;
-  addDoctorToHospital: (hospitalId: string, doctor: Doctor) => Doctor;
-  updateDoctorInHospital: (hospitalId: string, doctorId: string, updates: Partial<Doctor>) => Doctor | null;
-  removeDoctorFromHospital: (hospitalId: string, doctorId: string) => void;
-  addRoomToHospital: (hospitalId: string, room: Room) => Room;
-  updateRoomInHospital: (hospitalId: string, roomId: string, updates: Partial<Room>) => Room | null;
+  updateHospitalAmbulances: (hospitalId: string, data: Partial<Hospital['ambulances']>) => Promise<void>;
+  updateHospitalCapabilities: (hospitalId: string, data: Partial<Hospital['facilities']>) => Promise<void>;
+  addDoctorToHospital: (hospitalId: string, doctor: Doctor) => Promise<Doctor>;
+  updateDoctorInHospital: (hospitalId: string, doctorId: string, updates: Partial<Doctor>) => Promise<Doctor | null>;
+  removeDoctorFromHospital: (hospitalId: string, doctorId: string) => Promise<void>;
+  addRoomToHospital: (hospitalId: string, room: Room) => Promise<Room>;
+  updateRoomInHospital: (hospitalId: string, roomId: string, updates: Partial<Room>) => Promise<Room | null>;
   resyncHospitalDoctors: (hospitalId: string) => void;
   
   // Patient Journey
@@ -232,24 +232,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [locationAttempted, setLocationAttempted] = useState<boolean>(false);
 
   // Centralized hospital data from hospitalService
-  // Initialize from storage or use mock data as fallback
-  const [hospitals, setHospitalsState] = useState<Hospital[]>(() => {
-    const stored = hospitalService.getHospitals();
-    if (stored.length > 0) return stored;
-    // Save initial mock data to storage for persistence
-    INITIAL_HOSPITALS.forEach(h => hospitalService.updateHospital(h));
-    return INITIAL_HOSPITALS;
-  });
+  // Initialize from storage (sync) - API sync happens in background
+  const [hospitals, setHospitalsState] = useState<Hospital[]>([]);
   
-  // Sync hospitals from storage on mount
+  // Sync hospitals from storage on mount and optionally from API
   useEffect(() => {
-    const stored = hospitalService.getHospitals();
-    if (stored.length > 0) setHospitalsState(stored);
+    (async () => {
+      const stored = hospitalService.getHospitalsSync();
+      if (stored.length > 0) setHospitalsState(stored);
+      
+      // Optionally sync from API in background (non-blocking)
+      try {
+        const apiHospitals = await hospitalService.syncAllHospitalsFromBackend();
+        if (apiHospitals.length > 0) {
+          setHospitalsState(apiHospitals);
+        }
+      } catch {
+        // Silently fail - localStorage fallback is already loaded
+      }
+    })();
     
     // Listen for storage changes from other tabs
     const handleStorageChange = (e: CustomEvent) => {
       if (e.detail) {
-        const updated = hospitalService.getHospitals();
+        const updated = hospitalService.getHospitalsSync();
         setHospitalsState(updated);
       }
     };
@@ -257,9 +263,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('mediflow:hospitals-changed', handleStorageChange as EventListener);
   }, []);
   
-  const setHospitals = useCallback((newHospitals: Hospital[]) => {
-    newHospitals.forEach(h => hospitalService.updateHospital(h));
-    setHospitalsState(hospitalService.getHospitals());
+  const setHospitals = useCallback(async (newHospitals: Hospital[]) => {
+    for (const h of newHospitals) {
+      await hospitalService.updateHospital(h);
+    }
+    setHospitalsState(hospitalService.getHospitalsSync());
   }, []);
 
   const addDiscoveredHospitals = useCallback((newHospitals: Hospital[]) => {
@@ -419,7 +427,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           }
 
           if (nearbyHospitals.length > 0) {
-            const merged = hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
+            const merged = await hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
             setHospitals(merged);
             setSelectedHospital(merged[0]);
             addNotification({
@@ -1135,15 +1143,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         beds,
         toggleBedStatus,
         updateBedStatus,
-        getHospitalById: hospitalService.getHospitalById.bind(hospitalService),
+        getHospitalById: hospitalService.getHospitalByIdSync.bind(hospitalService),
         updateHospital: hospitalService.updateHospital.bind(hospitalService),
-        updateHospitalBeds: hospitalService.updateBedsMetrics.bind(hospitalService),
-        updateHospitalICU: hospitalService.updateICU.bind(hospitalService),
-        updateHospitalEmergencyRooms: hospitalService.updateEmergencyRooms.bind(hospitalService),
-        updateHospitalQueue: hospitalService.updateQueue.bind(hospitalService),
-        updateHospitalDoctors: hospitalService.updateDoctors.bind(hospitalService),
-        updateHospitalAmbulances: hospitalService.updateAmbulances.bind(hospitalService),
-        updateHospitalCapabilities: hospitalService.updateCapabilities.bind(hospitalService),
+        updateHospitalBeds: hospitalService.updateHospitalBeds.bind(hospitalService),
+        updateHospitalICU: hospitalService.updateHospitalICU.bind(hospitalService),
+        updateHospitalEmergencyRooms: hospitalService.updateHospitalEmergencyRooms.bind(hospitalService),
+        updateHospitalQueue: hospitalService.updateHospitalQueue.bind(hospitalService),
+        updateHospitalDoctors: hospitalService.resyncDoctors.bind(hospitalService),
+        updateHospitalAmbulances: hospitalService.updateHospitalAmbulances.bind(hospitalService),
+        updateHospitalCapabilities: hospitalService.updateHospitalCapabilities.bind(hospitalService),
         addDoctorToHospital: hospitalService.addDoctor.bind(hospitalService),
         updateDoctorInHospital: hospitalService.updateDoctor.bind(hospitalService),
         removeDoctorFromHospital: hospitalService.removeDoctor.bind(hospitalService),
