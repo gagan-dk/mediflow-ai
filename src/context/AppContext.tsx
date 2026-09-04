@@ -442,7 +442,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             });
           }
 
-          soundFX.playChime();
         } catch (e) {
           console.error('Error fetching real hospitals:', e);
           addNotification({
@@ -528,7 +527,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCurrentUser(profile);
     setIsAuthenticated(true);
-    soundFX.playChime();
     return { success: true, role: cred.role };
   };
 

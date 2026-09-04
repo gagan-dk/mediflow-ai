@@ -58,6 +58,7 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
     updateHospitalQueue,
     updateHospitalAmbulances,
     updateHospitalCapabilities,
+    getHospitalById,
     addNotification
   } = useApp();
 

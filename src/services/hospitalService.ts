@@ -173,8 +173,27 @@ class HospitalService {
     const source = existing || matched;
 
     if (!source || !source.operationalDataAvailable) {
+      // Ensure nested objects are populated from flat properties so staff can later save
+      const d = discovered;
       return {
-        ...discovered,
+        ...d,
+        beds: d.beds ?? { total: d.totalBeds ?? 0, available: d.availableBeds ?? 0, occupied: 0, reserved: 0 },
+        icu: d.icu ?? { total: d.totalICUBeds ?? 0, available: d.availableICUBeds ?? 0, occupied: 0, reserved: 0 },
+        emergencyRooms: d.emergencyRooms ?? { total: d.totalEmergencyBeds ?? 0, available: d.availableEmergencyBeds ?? 0, occupied: 0, cleaning: 0 },
+        queue: d.queue ?? { totalPatients: 0, criticalCount: 0, highCount: 0, moderateCount: 0, lowCount: 0, estimatedWaitTimeMinutes: d.estimatedWaitTimeMinutes ?? 0, currentERLoadPercent: d.currentERLoadPercent ?? 0 },
+        doctors: d.doctors ?? { total: 0, available: 0, onDuty: 0, bySpecialization: {} },
+        ambulances: d.ambulances ?? { total: d.ambulanceAvailableCount ?? 0, available: d.ambulanceAvailableCount ?? 0, dispatched: 0, enRoute: 0, atHospital: 0 },
+        facilities: d.facilities ?? {
+          emergencyDepartment: d.emergencyAvailable ?? true,
+          icu: d.icuAvailable ?? false,
+          oxygenSupport: d.oxygenSupport ?? true,
+          ventilator: d.ventilatorAvailability ?? false,
+          traumaCare: d.traumaLevel === 1,
+          cardiacCare: d.cardiacCareAvailable ?? false,
+          strokeUnit: d.strokeUnitAvailable ?? false,
+          orthopedicSurgeon: d.orthopedicAvailable ?? false,
+          pediatricEmergency: d.pediatricAvailable ?? false,
+        },
         operationalDataAvailable: source?.operationalDataAvailable ?? false,
         configComplete: false,
         updatedBy: source?.updatedBy || 'system',
