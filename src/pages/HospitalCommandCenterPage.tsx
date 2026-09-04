@@ -41,6 +41,8 @@ import { PreAlertModal } from '../components/PreAlertModal';
 import { HospitalPreAlert } from '../types/preAlert';
 import { QueueStatus } from '../types/queue';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
+import { mapService } from '../services/map/mapService';
+import { getAllQuotaStatuses } from '../services/map/apiQuotaService';
 
 export const HospitalCommandCenterPage: React.FC = () => {
   const { 
@@ -277,6 +279,91 @@ export const HospitalCommandCenterPage: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* Map Services Health — Admin + Dev Mode */}
+      {(currentUser.role === 'admin' || import.meta.env.DEV) && (
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-brand-100 text-brand-700 rounded-xl">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 text-sm">Map Services Health</h3>
+                <p className="text-xs text-slate-500">Provider status, quota usage, and routing diagnostics</p>
+              </div>
+            </div>
+            <span className="text-[10px] font-mono px-2 py-1 bg-slate-100 text-slate-600 rounded-lg border border-slate-200">
+              DEV / ADMIN ONLY
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {getAllQuotaStatuses().map(q => (
+              <div key={q.provider} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">{q.provider}</span>
+                  <span className={`px-2 py-0.5 rounded-lg text-[10px] font-bold ${
+                    q.status === 'active' ? 'bg-emerald-100 text-emerald-700' :
+                    q.status === 'exhausted' ? 'bg-red-100 text-red-700' :
+                    q.status === 'not_configured' ? 'bg-slate-100 text-slate-600' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {q.status.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Requests used today</span>
+                    <span className="font-mono font-bold text-slate-800">{q.used}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Safety limit</span>
+                    <span className="font-mono font-bold text-slate-800">{q.safetyLimit}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Remaining</span>
+                    <span className="font-mono font-bold text-slate-800">{Math.max(0, q.safetyLimit - q.used)}</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${q.exhausted ? 'bg-red-500' : q.used / q.safetyLimit > 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                      style={{ width: `${Math.min(100, (q.used / q.safetyLimit) * 100)}%` }}
+                    />
+                  </div>
+                  {q.lastError && <div className="text-red-600 text-[10px]">Error: {q.lastError}</div>}
+                  {q.lastSuccess && <div className="text-emerald-600 text-[10px]">Last success: {new Date(q.lastSuccess).toLocaleTimeString()}</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-500 block font-medium">Current Provider</span>
+              <span className="text-xs font-bold text-slate-800 capitalize">{mapService.getStatus().primary}</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-500 block font-medium">GPS Status</span>
+              <span className="text-xs font-bold text-slate-800">{navigator.geolocation ? 'Available' : 'Unavailable'}</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-500 block font-medium">Routing</span>
+              <span className="text-xs font-bold text-slate-800">OSRM (Free)</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <span className="text-[10px] text-slate-500 block font-medium">Map Tiles</span>
+              <span className="text-xs font-bold text-slate-800 capitalize">{mapService.getTileSource()?.url ? 'Geoapify' : 'Unavailable'}</span>
+            </div>
+          </div>
+
+          {mapService.getStatus().message && (
+            <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl text-xs">
+              {mapService.getStatus().message}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Main Section Content depending on active tab */}
       {/* 1. Pre-Alerts Tab / Section — only visible to hospital staff and admin */}
