@@ -257,4 +257,5 @@ export interface Hospital extends HospitalOperationalData {
   estimatedWaitTimeMinutes: number; // alias for queue.estimatedWaitTimeMinutes
   ambulanceAvailableCount: number; // alias for ambulances.available
   isDirectSearchMatch?: boolean; // Flag indicating this hospital was explicitly matched via search
+  geographicSource?: string; // Map provider source
 }

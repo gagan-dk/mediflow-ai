@@ -24,31 +24,31 @@ export function normalizeHospitalName(name: string): string {
 
 /**
  * Match a discovered (map/API) hospital to a MediFlow hospital record.
- * Matching priority: hospitalId > placeId > normalized name(+location).
+ *
+ * Matching priority (per audit requirements):
+ *   1. Provider place ID / stable identifier
+ *   2. Coordinate proximity (must be very close)
+ *   3. Normalized address similarity
+ *
+ * We intentionally do NOT match by name alone, because unrelated hospitals
+ * can share similar names (e.g., "City Hospital" in different cities).
+ * If matching is ambiguous, we do NOT attach operational data.
  */
 export function matchHospitalToMediflow(
-  discovered: { id?: string; name: string; lat: number; lng: number },
+  discovered: { id?: string; providerPlaceId?: string; name: string; address?: string; lat: number; lng: number },
   mediflowHospitals: Hospital[]
 ): Hospital | null {
   if (!mediflowHospitals.length) return null;
 
-  // 1. Exact ID match
-  if (discovered.id) {
-    const byId = mediflowHospitals.find(h => h.id === discovered.id || h.hospitalId === discovered.id);
+  // 1. Exact ID or provider place ID match
+  const matchId = discovered.id || discovered.providerPlaceId;
+  if (matchId) {
+    const byId = mediflowHospitals.find(h => h.id === matchId || h.hospitalId === matchId);
     if (byId) return byId;
   }
 
-  // 2. Normalized name match (tolerate suffixes like city names)
-  const normName = normalizeHospitalName(discovered.name);
-  for (const h of mediflowHospitals) {
-    const hNorm = normalizeHospitalName(h.name);
-    if (hNorm && normName && (hNorm.includes(normName) || normName.includes(hNorm))) {
-      return h;
-    }
-  }
-
-  // 3. Coordinate proximity match (within ~800m)
-  const RADIUS_MATCH = 0.008; // ~0.8 degrees of lat/lng ≈ 800m
+  // 2. Coordinate proximity match (within ~500m = 0.0045 degrees)
+  const RADIUS_MATCH = 0.0045;
   for (const h of mediflowHospitals) {
     const dLat = Math.abs(h.coordinates.lat - discovered.lat);
     const dLng = Math.abs(h.coordinates.lng - discovered.lng);
@@ -57,7 +57,29 @@ export function matchHospitalToMediflow(
     }
   }
 
+  // 3. Normalized address similarity (requires address on both sides)
+  if (discovered.address) {
+    const normDisc = normalizeAddress(discovered.address);
+    for (const h of mediflowHospitals) {
+      const normHosp = normalizeAddress(h.address || '');
+      if (normDisc && normHosp && (normDisc.includes(normHosp) || normHosp.includes(normDisc))) {
+        return h;
+      }
+    }
+  }
+
+  // Ambiguous or no match — do NOT attach operational data.
   return null;
+}
+
+/**
+ * Normalize an address string for comparison.
+ */
+function normalizeAddress(address: string): string {
+  return address
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
 }
 
 /**
@@ -141,20 +163,28 @@ class HospitalService {
   mergeDiscoveredHospital(discovered: Hospital): Hospital {
     const all = this.getHospitals();
     const existing = all.find(h => h.hospitalId === discovered.hospitalId || h.id === discovered.id);
+    const matched = !existing ? matchHospitalToMediflow({
+      id: discovered.id,
+      name: discovered.name,
+      address: discovered.address,
+      lat: discovered.coordinates.lat,
+      lng: discovered.coordinates.lng,
+    }, all) : null;
+    const source = existing || matched;
 
-    if (!existing || !existing.operationalDataAvailable) {
+    if (!source || !source.operationalDataAvailable) {
       return {
         ...discovered,
-        operationalDataAvailable: existing?.operationalDataAvailable ?? false,
+        operationalDataAvailable: source?.operationalDataAvailable ?? false,
         configComplete: false,
-        updatedBy: existing?.updatedBy || 'system',
-        lastUpdated: existing?.lastUpdated || discovered.lastUpdated,
+        updatedBy: source?.updatedBy || 'system',
+        lastUpdated: source?.lastUpdated || discovered.lastUpdated,
       };
     }
 
     // Keep the staff-authored operational record; overwrite only location data
     return {
-      ...existing,
+      ...source,
       id: discovered.id,
       name: discovered.name,
       type: discovered.type,

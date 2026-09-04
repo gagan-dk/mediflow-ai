@@ -16,10 +16,9 @@ import {
 } from '../services/mockData';
 import { 
   UserGeoLocation, 
-  fetchRealNearbyHospitals, 
-  reverseGeocodeCoords,
-  generateRealCalibratedHospitals
+  reverseGeocodeCoords
 } from '../services/realHospitalService';
+import { mapService } from '../services/map/mapService';
 import { hospitalDiscoveryService } from '../services/hospitalDiscoveryService';
 import { hospitalService } from '../services/hospitalService';
 import { soundFX } from '../services/soundEffects';
@@ -374,6 +373,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setIsLocatingUser(true);
 
+    // Log provider configuration in dev mode
+    if (import.meta.env.DEV) {
+      const { isConfigured } = await import('../services/map/apiQuotaService');
+      console.log('[Config] Geoapify configured:', isConfigured('geoapify'));
+      console.log('[Config] LocationIQ configured:', isConfigured('locationiq'));
+    }
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
@@ -392,46 +398,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
           console.log('[GPS] Reverse geocoded address:', geoInfo.address);
 
-          // Discovery: expand radius until we find >= 10 hospitals around the user's real position
           let nearbyHospitals: Hospital[] = [];
+          let discoverySource: string = 'none';
+          let providerMessage: string | undefined;
           try {
             const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
-              minHospitals: 10,
+              minHospitals: 5,
               initialRadiusKm: 10,
               maxRadiusKm: 30,
             });
             nearbyHospitals = discovery.hospitals;
-            console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km');
+            discoverySource = discovery.source;
+            providerMessage = discovery.providerMessage;
+            console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km via', discoverySource);
+            if (providerMessage) {
+              console.log('[Hospitals] Provider message:', providerMessage);
+            }
           } catch (discoveryError) {
-            console.warn('[Hospitals] Discovery error, falling back:', discoveryError);
+            console.warn('[Hospitals] Discovery error:', discoveryError);
           }
 
-          // If discovery returned nothing useful, fall back to the direct OSM query
-          if (nearbyHospitals.length === 0) {
-            nearbyHospitals = await fetchRealNearbyHospitals(latitude, longitude, 15);
-            console.log('[Hospitals] Direct OSM query found:', nearbyHospitals.length);
-          }
-
-          if (nearbyHospitals && nearbyHospitals.length > 0) {
-            // Merge real location data with any staff-configured operational
-            // data already stored in the centralized hospital record.
+          if (nearbyHospitals.length > 0) {
             const merged = hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
             setHospitals(merged);
             setSelectedHospital(merged[0]);
             addNotification({
               title: '📍 Live GPS Location Acquired',
-              message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby.`,
+              message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
               type: 'system'
             });
           } else {
-            console.warn('[Hospitals] No hospitals found, using fallback hospitals');
-            const fallbackHospitals = generateRealCalibratedHospitals(latitude, longitude);
-            const merged = hospitalService.mergeDiscoveredHospitals(fallbackHospitals);
-            setHospitals(merged);
-            setSelectedHospital(merged[0]);
+            const status = mapService.getStatus();
+            let message = 'No hospitals found in the selected radius.';
+            if (providerMessage) {
+              message = providerMessage;
+            } else if (status.message) {
+              message = status.message;
+            }
             addNotification({
-              title: '📍 Location Found — Hospital Data Unavailable',
-              message: `Using calibrated hospital estimates around ${geoInfo.address} since live hospital data could not be fetched.`,
+              title: '📍 Location Acquired — No Hospitals Found',
+              message: `${message} Try searching by hospital name.`,
               type: 'system'
             });
           }
@@ -439,14 +445,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           soundFX.playChime();
         } catch (e) {
           console.error('Error fetching real hospitals:', e);
-          // Still replace the default mock hospitals with location-calibrated ones
-          const fallbackHospitals = generateRealCalibratedHospitals(latitude, longitude);
-          const merged = hospitalService.mergeDiscoveredHospitals(fallbackHospitals);
-          setHospitals(merged);
-          setSelectedHospital(merged[0]);
           addNotification({
             title: '⚠️ Location Error',
-            message: 'Failed to fetch hospitals. Using fallback data.',
+            message: 'Failed to fetch hospital data. Please try again.',
             type: 'system'
           });
         } finally {
