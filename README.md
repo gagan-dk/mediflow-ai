@@ -62,6 +62,7 @@ This project is open to contributors looking to make a meaningful impact in heal
 | **Recharts** | Data visualizations |
 | **Lucide React** | Icon library |
 | **Canvas Confetti** | Celebratory UI effects |
+| **FastAPI + PostgreSQL** | Backend API / database (see [backend/README.md](backend/README.md)) |
 
 ---
 
