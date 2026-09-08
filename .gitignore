@@ -44,3 +44,12 @@ Thumbs.db
 # OS
 .DS_Store
 *.pem
+
+# Python / backend (NEVER commit secrets)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/.venv/
+backend/.env
+backend/*.db
+backend/.pytest_cache/
