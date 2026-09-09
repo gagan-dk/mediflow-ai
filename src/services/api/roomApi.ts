@@ -33,8 +33,7 @@ export async function getRooms(
     department: query.department,
   });
   return apiClient.get<GetRoomsResponse>(
-    `/hospitals/${query.hospitalId}/rooms${qs}`,
-    token
+    `/hospitals/${query.hospitalId}/rooms${qs}`
   );
 }
 
@@ -44,8 +43,7 @@ export async function createRoom(
 ): Promise<CreateRoomResponse> {
   return apiClient.post<CreateRoomResponse>(
     `/hospitals/${data.hospitalId}/rooms`,
-    data,
-    token
+    data
   );
 }
 
@@ -57,8 +55,7 @@ export async function updateRoom(
 ): Promise<UpdateRoomResponse> {
   return apiClient.put<UpdateRoomResponse>(
     `/hospitals/${hospitalId}/rooms/${roomId}`,
-    data,
-    token
+    data
   );
 }
 
@@ -68,7 +65,6 @@ export async function deleteRoom(
   token: string
 ): Promise<DeleteRoomResponse> {
   return apiClient.delete<DeleteRoomResponse>(
-    `/hospitals/${hospitalId}/rooms/${roomId}`,
-    token
+    `/hospitals/${hospitalId}/rooms/${roomId}`
   );
 }

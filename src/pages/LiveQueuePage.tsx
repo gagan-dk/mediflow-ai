@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Clock, 
   UserCheck, 
@@ -11,15 +11,53 @@ import {
   RefreshCw, 
   Sparkles,
   ArrowRight,
-  Ticket
+  Ticket,
+  Loader2,
+  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
 import { soundFX } from '../services/soundEffects';
+import type { QueueTokenView, BackendQueueStatus } from '../types/api';
+import type { QueuePatient, QueueStatus } from '../types/queue';
+import type { SeverityLevel } from '../types/hospital';
 
 interface LiveQueuePageProps {
   navigate: (path: string) => void;
 }
+
+const mapBackendSeverity = (s: string | null): SeverityLevel => {
+  if (s === 'CRITICAL' || s === 'HIGH' || s === 'MODERATE' || s === 'LOW') return s;
+  return 'MODERATE';
+};
+
+const mapBackendStatus = (s: BackendQueueStatus): QueueStatus => {
+  switch (s) {
+    case 'WAITING': return 'Waiting';
+    case 'CALLED': return 'Under Assessment';
+    case 'IN_PROGRESS': return 'Treatment';
+    case 'COMPLETED': return 'Discharged';
+    case 'CANCELLED': return 'Discharged';
+    default: return 'Waiting';
+  }
+};
+
+const backendTokenToQueuePatient = (token: QueueTokenView): QueuePatient => ({
+  id: token.id,
+  tokenNumber: token.token_number,
+  patientName: token.patient_name || 'Unknown Patient',
+  age: token.case_age || 0,
+  gender: 'male',
+  severity: mapBackendSeverity(token.case_severity),
+  symptoms: token.reported_symptoms ? token.reported_symptoms.split(',').map(s => s.trim()) : [],
+  arrivalTime: token.created_at,
+  estimatedWaitMinutes: 0,
+  status: mapBackendStatus(token.status),
+  assignedDoctor: token.status === 'IN_PROGRESS' ? 'Assigned' : undefined,
+  assignedRoom: token.status === 'IN_PROGRESS' ? 'Treatment Bay' : undefined,
+  hospitalId: token.hospital_id,
+  queuePosition: token.queue_position,
+});
 
 export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
   const { 
@@ -27,19 +65,55 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
     myQueueToken, 
     selectedHospital, 
     hospitals, 
-    updateQueuePatientStatus 
+    updateQueuePatientStatus,
+    currentQueueToken,
+    refreshQueueForHospital
   } = useApp();
 
+  const [backendQueue, setBackendQueue] = useState<QueueTokenView[]>([]);
+  const [backendLoading, setBackendLoading] = useState(false);
+  const [backendError, setBackendError] = useState<string | null>(null);
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
+
   const currentHospital = selectedHospital || hospitals[0];
+  const hospitalId = currentQueueToken?.hospital_id || currentHospital?.id;
 
-  // Active Token data
-  const userToken = myQueueToken || queuePatients.find(p => p.severity === 'CRITICAL' || p.severity === 'HIGH') || queuePatients[0];
-  const activeServing = queuePatients.find(p => p.status === 'Treatment') || queuePatients[0];
+  const fetchBackendQueue = useCallback(async () => {
+    if (!hospitalId) return;
+    setBackendLoading(true);
+    setBackendError(null);
+    try {
+      const items = await refreshQueueForHospital(hospitalId);
+      setBackendQueue(items);
+      setLastRefresh(new Date());
+    } catch {
+      setBackendError('Unable to fetch queue from server. Showing local data.');
+    } finally {
+      setBackendLoading(false);
+    }
+  }, [hospitalId, refreshQueueForHospital]);
 
-  const criticalCount = queuePatients.filter(p => p.severity === 'CRITICAL').length;
-  const highCount = queuePatients.filter(p => p.severity === 'HIGH').length;
-  const moderateCount = queuePatients.filter(p => p.severity === 'MODERATE').length;
-  const lowCount = queuePatients.filter(p => p.severity === 'LOW').length;
+  useEffect(() => {
+    if (hospitalId) {
+      fetchBackendQueue();
+    }
+  }, [hospitalId, fetchBackendQueue]);
+
+  const hasBackendData = backendQueue.length > 0;
+  const displayQueue: QueuePatient[] = hasBackendData
+    ? backendQueue.map(backendTokenToQueuePatient)
+    : queuePatients;
+
+  const userBackendToken = currentQueueToken
+    ? backendQueue.find(t => t.id === currentQueueToken.id)
+    : null;
+  const userToken = myQueueToken || displayQueue.find(p => p.severity === 'CRITICAL' || p.severity === 'HIGH') || displayQueue[0];
+  const activeServing = displayQueue.find(p => p.status === 'Treatment' || p.status === 'Under Assessment') || displayQueue[0];
+
+  const criticalCount = displayQueue.filter(p => p.severity === 'CRITICAL').length;
+  const highCount = displayQueue.filter(p => p.severity === 'HIGH').length;
+  const moderateCount = displayQueue.filter(p => p.severity === 'MODERATE').length;
+  const lowCount = displayQueue.filter(p => p.severity === 'LOW').length;
 
   const handleAdvanceQueue = () => {
     soundFX.playChime();
@@ -48,10 +122,9 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
     }
   };
 
-  if (queuePatients.length === 0) {
+  if (displayQueue.length === 0) {
     return (
       <div className="max-w-5xl mx-auto space-y-8 pb-16">
-        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-xs font-bold">
@@ -62,7 +135,7 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
               Live Hospital Queue Tracker
             </h1>
             <p className="text-xs text-slate-500">
-              No patients are currently registered in the queue.
+              {hasBackendData ? 'No queue tokens found for this hospital.' : 'No patients are currently registered in the queue.'}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -102,11 +175,24 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
             Live Hospital Queue Tracker
           </h1>
           <p className="text-xs text-slate-500">
-            Emergency department real-time patient queue for <strong>{currentHospital.name}</strong>.
+            Emergency department real-time patient queue for <strong>{currentHospital?.name || 'Hospital'}</strong>.
+            {hasBackendData && <span className="text-emerald-600 ml-1">Backend connected</span>}
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={fetchBackendQueue}
+            disabled={backendLoading}
+            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs shadow-xs transition"
+          >
+            {backendLoading ? (
+              <Loader2 className="w-3.5 h-3.5 text-brand-600 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5 text-brand-600" />
+            )}
+            <span>Refresh Queue</span>
+          </button>
           <button
             onClick={handleAdvanceQueue}
             className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs shadow-xs transition"
@@ -126,75 +212,92 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
 
       <DisclaimerBanner compact />
 
+      {/* Backend Error Banner */}
+      {backendError && (
+        <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-800 flex-1">{backendError}</p>
+          <button onClick={() => setBackendError(null)} className="text-amber-500 hover:text-amber-700">
+            <span className="sr-only">Dismiss</span>×
+          </button>
+        </div>
+      )}
+
       {/* Patient Token Spotlight Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+      {userToken && (
+        <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
+          <div className="absolute right-0 top-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-          {/* Your Token Block */}
-          <div className="p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 space-y-2">
-            <div className="flex items-center justify-between text-xs text-brand-200">
-              <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider">
-                <Ticket className="w-4 h-4 text-brand-400" /> Your Assigned Token
-              </span>
-              <span className="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold">
-                {userToken.severity} PRIORITY
-              </span>
-            </div>
-            <div className="text-4xl font-extrabold font-mono tracking-tight text-white">
-              {userToken.tokenNumber}
-            </div>
-            <div className="text-xs text-slate-300">
-              Patient: <strong>{userToken.patientName}</strong> ({userToken.age}y)
-            </div>
-          </div>
-
-          {/* Current Serving & Position */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-400 font-medium">Currently Serving in Resus/ER:</span>
-              <span className="font-mono text-emerald-400 font-extrabold text-lg">
-                {activeServing.tokenNumber}
-              </span>
-            </div>
-
-            {/* Position and Wait Stats */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Patients Ahead</span>
-                <span className="text-2xl font-extrabold text-amber-400 font-mono">
-                  {userToken.queuePosition}
+          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            {/* Your Token Block */}
+            <div className="p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 space-y-2">
+              <div className="flex items-center justify-between text-xs text-brand-200">
+                <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider">
+                  <Ticket className="w-4 h-4 text-brand-400" /> Your Assigned Token
+                </span>
+                <span className="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold">
+                  {userToken.severity} PRIORITY
                 </span>
               </div>
-              <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
-                <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Estimated Wait</span>
-                <span className="text-2xl font-extrabold text-sky-400 font-mono">
-                  {userToken.estimatedWaitMinutes}m
+              <div className="text-4xl font-extrabold font-mono tracking-tight text-white">
+                {userToken.tokenNumber}
+              </div>
+              <div className="text-xs text-slate-300">
+                Patient: <strong>{userToken.patientName}</strong> ({userToken.age}y)
+              </div>
+              {hasBackendData && userBackendToken && (
+                <div className="text-[10px] text-slate-400 mt-1">
+                  Backend Status: <span className="text-emerald-400 font-semibold">{userBackendToken.status}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Current Serving & Position */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-slate-400 font-medium">Currently Serving in Resus/ER:</span>
+                <span className="font-mono text-emerald-400 font-extrabold text-lg">
+                  {activeServing?.tokenNumber || '—'}
                 </span>
               </div>
-            </div>
-          </div>
 
-          {/* Status Progression Card */}
-          <div className="p-4 bg-brand-600/20 backdrop-blur-md rounded-2xl border border-brand-400/30 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-brand-200 uppercase tracking-wider">Queue Status</span>
-              <span className="px-2 py-0.5 bg-brand-500 text-white rounded text-[10px] font-bold animate-pulse">
-                {userToken.status}
-              </span>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Patients Ahead</span>
+                  <span className="text-2xl font-extrabold text-amber-400 font-mono">
+                    {userToken.queuePosition}
+                  </span>
+                </div>
+                <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Estimated Wait</span>
+                  <span className="text-2xl font-extrabold text-sky-400 font-mono">
+                    {userToken.estimatedWaitMinutes}m
+                  </span>
+                </div>
+              </div>
             </div>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              {userToken.severity === 'CRITICAL' 
-                ? 'High-priority emergency bypass. Staff alerted for immediate resuscitation bay transfer.'
-                : 'Your place in the emergency triage queue is dynamically secured with live telemetry.'}
-            </p>
-            <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Assigned Room: {userToken.assignedRoom || 'Resus Bay 1 Standby'}</span>
+
+            {/* Status Progression Card */}
+            <div className="p-4 bg-brand-600/20 backdrop-blur-md rounded-2xl border border-brand-400/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-brand-200 uppercase tracking-wider">Queue Status</span>
+                <span className="px-2 py-0.5 bg-brand-500 text-white rounded text-[10px] font-bold animate-pulse">
+                  {userToken.status}
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 leading-relaxed">
+                {userToken.severity === 'CRITICAL' 
+                  ? 'High-priority emergency bypass. Staff alerted for immediate resuscitation bay transfer.'
+                  : 'Your place in the emergency triage queue is dynamically secured with live telemetry.'}
+              </p>
+              <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Assigned Room: {userToken.assignedRoom || 'Triage Waiting'}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Severity Breakdown Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -240,11 +343,20 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="font-bold text-slate-900 text-sm">Active Emergency Intake Queue</h3>
-            <p className="text-xs text-slate-500">Live priority order updated per clinical risk scoring.</p>
+            <p className="text-xs text-slate-500">
+              {hasBackendData ? 'Live priority order from backend server.' : 'Live priority order updated per clinical risk scoring.'}
+            </p>
           </div>
-          <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-mono font-semibold">
-            {queuePatients.length} Active Patients Registered
-          </span>
+          <div className="flex items-center gap-3">
+            {lastRefresh && (
+              <span className="text-[10px] text-slate-400 font-mono">
+                Updated: {lastRefresh.toLocaleTimeString()}
+              </span>
+            )}
+            <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-mono font-semibold">
+              {displayQueue.length} Active Patients Registered
+            </span>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -261,8 +373,8 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {queuePatients.map((p) => {
-                const isUser = myQueueToken?.id === p.id || p.tokenNumber === '#A104';
+              {displayQueue.map((p) => {
+                const isUser = myQueueToken?.id === p.id || (currentQueueToken && p.id === currentQueueToken.id);
                 return (
                   <tr key={p.id} className={`transition ${isUser ? 'bg-brand-50/80 font-semibold' : 'hover:bg-slate-50'}`}>
                     <td className="py-3 font-mono font-bold text-slate-900">
@@ -288,13 +400,19 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
                       </span>
                     </td>
                     <td className="py-3 text-slate-600 truncate max-w-xs">
-                      {p.symptoms.join(', ')}
+                      {p.symptoms.join(', ') || 'Not reported'}
                     </td>
                     <td className="py-3 font-mono font-semibold text-slate-700">
                       {p.estimatedWaitMinutes} mins
                     </td>
                     <td className="py-3">
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] font-medium text-slate-700">
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
+                        p.status === 'Waiting' ? 'bg-slate-100 text-slate-700' :
+                        p.status === 'Under Assessment' ? 'bg-amber-100 text-amber-800' :
+                        p.status === 'Treatment' ? 'bg-brand-100 text-brand-800' :
+                        p.status === 'Admitted' ? 'bg-emerald-100 text-emerald-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
                         {p.status}
                       </span>
                     </td>

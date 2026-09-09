@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  Hospital, 
+  Hospital as HospitalIcon, 
   MapPin, 
   Phone, 
   Mail, 
@@ -17,15 +17,20 @@ import {
   Info, 
   ChevronRight,
   ShieldAlert,
-  Navigation
+  Navigation,
+  AlertCircle,
+  Loader,
+  RefreshCw
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { hospitalService } from '../services/hospitalService';
+import { staffApi } from '../services/api/staffApi';
 import { InteractiveMap } from '../components/InteractiveMap';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
 import { DoctorManagement } from '../components/DoctorManagement';
 import { RoomManagement } from '../components/RoomManagement';
 import { HospitalOperationalDataEditor } from '../components/HospitalOperationalDataEditor';
+import { useStaffHospital } from '../hooks/useStaffHospital';
 import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus, Room, RoomType, RoomStatus, Hospital as HospitalType } from '../types/hospital';
 
 interface HospitalManagementPageProps {
@@ -49,86 +54,160 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     addNotification
   } = useApp();
 
-  const [activeSection, setActiveSection] = useState<'selection' | 'profile' | 'doctors' | 'rooms' | 'beds' | 'icu' | 'emergency'>('selection');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [profileHospitalId, setProfileHospitalId] = useState<string | null>(null);
+   const [activeSection, setActiveSection] = useState<'selection' | 'profile' | 'doctors' | 'rooms' | 'beds' | 'icu' | 'emergency'>('selection');
+   const [searchQuery, setSearchQuery] = useState('');
+   const [profileHospitalId, setProfileHospitalId] = useState<string | null>(null);
 
-  // Always derive the working record from the centralized store (getHospitalById
-  // reads the latest persisted hospital record each render), so every staff write
-  // immediately reflects here AND in the patient view.
-  const selectedHospitalForProfile: HospitalType | null = profileHospitalId
-    ? getHospitalById(profileHospitalId)
-    : null;
+   const { 
+     hospital: backendHospital,
+     operations: backendOperations,
+     loading: staffLoading,
+     error: staffError,
+     saving: staffSaving,
+     refreshHospital,
+     updateHospitalProfile,
+     updateOperations,
+     doctors: backendDoctors,
+     addDoctor: addDoctorApi,
+     updateDoctor: updateDoctorApi,
+     removeDoctor: removeDoctorApi,
+     rooms: backendRooms,
+     addRoom: addRoomApi,
+     updateRoom: updateRoomApi,
+     removeRoom: removeRoomApi,
+   } = useStaffHospital(currentUser.staffToken || null);
 
-  // Filter hospitals based on search
-  const filteredHospitals = hospitals.filter(hospital =>
-    hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    hospital.address?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+   const selectedHospitalForProfile: HospitalType | null = profileHospitalId
+     ? backendHospital || getHospitalById(profileHospitalId)
+     : null;
 
-  const handleSelectHospital = (hospital: HospitalType) => {
-    // Staff can only manage their assigned hospital
-    const staffHospitalId = currentUser.hospitalId;
-    if (staffHospitalId && hospital.hospitalId !== staffHospitalId && hospital.id !== staffHospitalId) {
-      addNotification({
-        title: '⚠️ Access Restricted',
-        message: `You can only manage your assigned hospital (${currentUser.hospitalName || staffHospitalId}).`,
-        type: 'system',
+   const filteredHospitals = hospitals.filter(hospital =>
+     hospital.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     hospital.address?.toLowerCase().includes(searchQuery.toLowerCase())
+   );
+
+   useEffect(() => {
+     if (staffError) {
+       addNotification({
+         title: 'Error',
+         message: staffError,
+         type: 'error',
+       });
+     }
+   }, [staffError, addNotification]);
+
+   const handleSelectHospital = (hospital: HospitalType) => {
+     const staffHospitalId = currentUser.hospitalId;
+     if (staffHospitalId && hospital.hospitalId !== staffHospitalId && hospital.id !== staffHospitalId) {
+       addNotification({
+         title: 'Access Restricted',
+         message: `You can only manage your assigned hospital (${currentUser.hospitalName || staffHospitalId}).`,
+         type: 'system',
+       });
+       return;
+     }
+     setSelectedHospital(hospital);
+     setProfileHospitalId(hospital.hospitalId || hospital.id);
+     setActiveSection('profile');
+     refreshHospital();
+   };
+
+   const handleBackToSelection = () => {
+     setActiveSection('selection');
+     setProfileHospitalId(null);
+   };
+
+   const profileDoctors = backendDoctors.length > 0 ? backendDoctors : (selectedHospitalForProfile?.doctorList || []);
+   const profileRooms = backendRooms.length > 0 ? backendRooms : (selectedHospitalForProfile?.roomsList || []);
+   const activeHospitalId = selectedHospitalForProfile?.hospitalId || selectedHospitalForProfile?.id || '';
+
+  const handleAddDoctor = async (doctor: Omit<Doctor, 'id'>) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await addDoctorApi({
+        name: doctor.name,
+        specialization: doctor.specialization,
+        department: doctor.department,
+        experience: doctor.experience,
+        status: doctor.status,
+        dutyStatus: doctor.dutyStatus,
+        email: doctor.email,
+        phone: doctor.phone,
+        emergencyAvailable: doctor.emergencyAvailable,
       });
-      return;
+      if (success) {
+        addNotification({ title: 'Success', message: 'Doctor added successfully', type: 'success' });
+      }
+    } else {
+      const newDoctor: Doctor = { ...doctor, hospitalId: activeHospitalId, id: `doc-${Date.now()}` };
+      addDoctorToHospital(activeHospitalId, newDoctor);
     }
-    setSelectedHospital(hospital);
-    setProfileHospitalId(hospital.hospitalId || hospital.id);
-    setActiveSection('profile');
   };
 
-  const handleBackToSelection = () => {
-    setActiveSection('selection');
-    setProfileHospitalId(null);
+  const handleUpdateDoctor = async (id: string, updates: Partial<Doctor>) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await updateDoctorApi(id, updates);
+      if (success) {
+        addNotification({ title: 'Success', message: 'Doctor updated successfully', type: 'success' });
+      }
+    } else {
+      updateDoctorInHospital(activeHospitalId, id, updates);
+    }
   };
 
-  // Doctors & Rooms are stored INSIDE the selected hospital's record
-  // (single source of truth shared with patients).
-  const profileDoctors = selectedHospitalForProfile?.doctorList || [];
-  const profileRooms = selectedHospitalForProfile?.roomsList || [];
-  const activeHospitalId = selectedHospitalForProfile?.hospitalId || selectedHospitalForProfile?.id || '';
-
-  const handleAddDoctor = (doctor: Omit<Doctor, 'id'>) => {
-    const newDoctor: Doctor = {
-      ...doctor,
-      hospitalId: activeHospitalId,
-      id: `doc-${Date.now()}`
-    };
-    addDoctorToHospital(activeHospitalId, newDoctor);
+  const handleRemoveDoctor = async (id: string) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await removeDoctorApi(id);
+      if (success) {
+        addNotification({ title: 'Success', message: 'Doctor removed successfully', type: 'success' });
+      }
+    } else {
+      removeDoctorFromHospital(activeHospitalId, id);
+    }
   };
 
-  const handleUpdateDoctor = (id: string, updates: Partial<Doctor>) => {
-    updateDoctorInHospital(activeHospitalId, id, updates);
+  const handleAddRoom = async (room: Omit<Room, 'id'>) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await addRoomApi({
+        roomNumber: room.roomNumber,
+        type: room.type,
+        floor: room.floor,
+        department: room.department,
+        capacity: room.capacity,
+        status: room.status,
+      });
+      if (success) {
+        addNotification({ title: 'Success', message: 'Room added successfully', type: 'success' });
+      }
+    } else {
+      const newRoom: Room = { ...room, hospitalId: activeHospitalId, id: `room-${Date.now()}` };
+      addRoomToHospital(activeHospitalId, newRoom);
+    }
   };
 
-  const handleRemoveDoctor = (id: string) => {
-    removeDoctorFromHospital(activeHospitalId, id);
+  const handleUpdateRoom = async (id: string, updates: Partial<Room>) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await updateRoomApi(id, updates);
+      if (success) {
+        addNotification({ title: 'Success', message: 'Room updated successfully', type: 'success' });
+      }
+    } else {
+      updateRoomInHospital(activeHospitalId, id, updates);
+    }
   };
 
-  const handleAddRoom = (room: Omit<Room, 'id'>) => {
-    const newRoom: Room = {
-      ...room,
-      hospitalId: activeHospitalId,
-      id: `room-${Date.now()}`
-    };
-    addRoomToHospital(activeHospitalId, newRoom);
-  };
-
-  const handleUpdateRoom = (id: string, updates: Partial<Room>) => {
-    updateRoomInHospital(activeHospitalId, id, updates);
-  };
-
-  const handleRemoveRoom = (id: string) => {
-    hospitalService.removeRoom(activeHospitalId, id);
+  const handleRemoveRoom = async (id: string) => {
+    if (currentUser.staffToken && backendHospital) {
+      const success = await removeRoomApi(id);
+      if (success) {
+        addNotification({ title: 'Success', message: 'Room removed successfully', type: 'success' });
+      }
+    } else {
+      hospitalService.removeRoom(activeHospitalId, id);
+    }
   };
 
   const handleAssignPatient = (roomId: string, patientId: string) => {
-    const hosp = getHospitalById(activeHospitalId);
+    const hosp = backendHospital || getHospitalById(activeHospitalId);
     if (hosp) {
       const updated = (hosp.roomsList || []).map(room =>
         room.id === roomId
@@ -139,7 +218,17 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     }
   };
 
-  // Hospital staff should only see this page
+  if (staffLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader className="w-8 h-8 animate-spin text-brand-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-500">Loading hospital data...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (currentUser.role !== 'hospital_staff') {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -523,7 +612,11 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
                   Manage {activeSection === 'beds' ? 'Beds' : activeSection === 'icu' ? 'ICU Capacity' : 'Emergency Department'} for {selectedHospitalForProfile.name}
                 </h3>
               </div>
-              <HospitalOperationalDataEditor hospital={selectedHospitalForProfile} />
+              <HospitalOperationalDataEditor 
+                hospital={selectedHospitalForProfile} 
+                staffToken={currentUser.staffToken}
+                onSuccess={refreshHospital}
+              />
             </>
           )}
         </div>

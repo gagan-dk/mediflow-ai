@@ -23,7 +23,7 @@ import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
-  const { isAuthenticated, currentUser, login } = useApp();
+  const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
   const navigate = (path: string) => {
     setCurrentPath(path);
@@ -68,9 +68,21 @@ const AppContent: React.FC = () => {
     navigate('/');
   };
 
+  // Gate: show loading while checking session
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-3 border-brand-500/30 border-t-brand-500 rounded-full animate-spin" />
+          <div className="text-sm text-slate-400 font-medium">Restoring session...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Gate: show login page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} />;
+    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} />;
   }
 
   return (

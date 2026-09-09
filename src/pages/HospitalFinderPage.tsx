@@ -760,15 +760,21 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-1.5">
-                          <HospitalIcon className={`w-4 h-4 ${isSelected ? 'text-brand-600' : isDirectMatch ? 'text-emerald-600' : 'text-slate-500'}`} />
-                          {hosp.name}
-                        </h3>
-                      </div>
-                      <p className="text-[11px] text-slate-500">{hosp.address}</p>
-                    </div>
+                     <div className="space-y-1">
+                       <div className="flex items-center justify-between">
+                         <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-1.5">
+                           <HospitalIcon className={`w-4 h-4 ${isSelected ? 'text-brand-600' : isDirectMatch ? 'text-emerald-600' : 'text-slate-500'}`} />
+                           {hosp.name}
+                         </h3>
+                       </div>
+                       <p className="text-[11px] text-slate-500">{hosp.address}</p>
+                       {hosp.lastUpdated && (
+                         <p className="text-[10px] text-slate-400 flex items-center gap-1">
+                           <Clock className="w-3 h-3" />
+                           <span>Updated: {new Date(hosp.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                         </p>
+                       )}
+                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs py-2 border-y border-slate-100 bg-slate-50/50 p-2.5 rounded-2xl">
                       <div>

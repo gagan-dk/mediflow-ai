@@ -26,14 +26,14 @@ export async function getAmbulances(
     status: query?.status,
     vehicleNumber: query?.vehicleNumber,
   });
-  return apiClient.get<GetAmbulancesResponse>(`/ambulances${qs}`, token);
+  return apiClient.get<GetAmbulancesResponse>(`/ambulances${qs}`);
 }
 
 export async function getAmbulanceById(
   ambulanceId: string,
   token?: string
 ): Promise<{ ambulance: import('@/types/ambulance').Ambulance }> {
-  return apiClient.get(`/ambulances/${ambulanceId}`, token);
+  return apiClient.get(`/ambulances/${ambulanceId}`);
 }
 
 export async function updateAmbulance(
@@ -41,5 +41,5 @@ export async function updateAmbulance(
   data: UpdateAmbulanceRequest,
   token: string
 ): Promise<UpdateAmbulanceResponse> {
-  return apiClient.put<UpdateAmbulanceResponse>(`/ambulances/${ambulanceId}`, data, token);
+  return apiClient.put<UpdateAmbulanceResponse>(`/ambulances/${ambulanceId}`, data);
 }

@@ -22,7 +22,10 @@ import {
   MapPin, 
   User, 
   Zap,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EmergencyAssessmentInput } from '../types/prioritization';
@@ -34,7 +37,7 @@ interface EmergencyAssessmentPageProps {
 }
 
 export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = ({ navigate }) => {
-  const { runEmergencyAssessment } = useApp();
+  const { submitEmergencyCase, emergencyLoading, emergencyError, clearEmergencyError, currentEmergencyCase } = useApp();
 
   // Form State
   const [patientName, setPatientName] = useState('Ramesh Sundaram');
@@ -56,6 +59,8 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
   const [spO2, setSpO2] = useState<number>(0);
   const [temp, setTemp] = useState<number>(0);
   const [uploadedFile, setUploadedFile] = useState<string>('none');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // Quick Preset Handlers
   const applyPreset = (type: 'cardiac' | 'asthma' | 'stroke' | 'trauma' | 'fever' | 'minor') => {
@@ -154,10 +159,17 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
     );
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting || emergencyLoading) return;
+
     if (selectedSymptoms.length === 0) {
       alert('Please select at least one symptom for emergency prioritization.');
+      return;
+    }
+
+    if (currentEmergencyCase && currentEmergencyCase.status === 'REPORTED') {
+      setSubmitError('An active emergency case is already open. Please wait for it to be resolved before submitting a new one.');
       return;
     }
 
@@ -184,9 +196,22 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
       notes
     };
 
-    runEmergencyAssessment(inputData);
-    navigate('/assessment-result');
+    setIsSubmitting(true);
+    setSubmitError(null);
+    clearEmergencyError();
+
+    try {
+      await submitEmergencyCase(inputData);
+      navigate('/assessment-result');
+    } catch {
+      setSubmitError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const isLoading = isSubmitting || emergencyLoading;
+  const activeError = submitError || emergencyError;
 
   const getIcon = (name: string) => {
     switch (name) {
@@ -559,6 +584,24 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
           </div>
         </div>
 
+        {/* Error Banner */}
+        {activeError && (
+          <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-red-800">Emergency Submission Error</p>
+              <p className="text-xs text-red-700 mt-0.5">{activeError}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setSubmitError(null); clearEmergencyError(); }}
+              className="p-1 text-red-500 hover:text-red-700 transition shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Submit Action Button */}
         <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-500 text-center sm:text-left">
@@ -567,11 +610,25 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
 
           <button
             type="submit"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 text-white font-extrabold rounded-xl text-sm shadow-xl shadow-red-600/30 transition transform active:scale-95"
+            disabled={isLoading}
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 font-extrabold rounded-xl text-sm shadow-xl transition transform ${
+              isLoading
+                ? 'bg-slate-400 text-white cursor-not-allowed shadow-none'
+                : 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 text-white shadow-red-600/30 active:scale-95'
+            }`}
           >
-            <ShieldAlert className="w-4 h-4" />
-            <span>Analyze Emergency Prioritization</span>
-            <ChevronRight className="w-4 h-4" />
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Submitting Emergency Case…</span>
+              </>
+            ) : (
+              <>
+                <ShieldAlert className="w-4 h-4" />
+                <span>Analyze Emergency Prioritization</span>
+                <ChevronRight className="w-4 h-4" />
+              </>
+            )}
           </button>
         </div>
       </form>

@@ -8,7 +8,6 @@
 
 import type { Hospital, Doctor, Bed, Room, SeverityLevel } from './hospital';
 import type { Ambulance } from './ambulance';
-import type { QueuePatient } from './queue';
 
 // ============================================================================
 // API Error
@@ -285,48 +284,33 @@ export interface UpdateAmbulanceResponse {
 }
 
 // ============================================================================
-// Emergency
+// Emergency (aligned with backend /api/emergency-cases)
 // ============================================================================
 
+export type BackendSeverity = 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
+export type BackendEmergencyCaseStatus = 'REPORTED' | 'DISPATCHED' | 'EN_ROUTE' | 'ARRIVED' | 'TREATING' | 'RESOLVED' | 'CANCELLED';
+export type BackendQueueStatus = 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
 export interface CreateEmergencyRequest {
-  patientName: string;
-  age: number;
-  gender: 'male' | 'female' | 'other';
-  location: string;
-  coordinates?: { lat: number; lng: number };
-  selectedSymptoms: string[];
-  duration: 'less_than_30min' | '1_to_3_hours' | 'today' | 'several_days';
-  painScale: number;
-  existingConditions: string[];
-  consciousness: 'alert' | 'voice_responsive' | 'pain_responsive' | 'unresponsive';
-  vitals?: {
-    heartRateBpm?: number;
-    bloodPressureSystolic?: number;
-    bloodPressureDiastolic?: number;
-    oxygenSaturationSpO2?: number;
-    temperatureCelsius?: number;
-    respiratoryRate?: number;
-  };
-  notes?: string;
+  reported_symptoms: string;
+  age?: number;
+  latitude: number;
+  longitude: number;
+  severity: BackendSeverity;
 }
 
-export interface CreateEmergencyResponse {
-  emergencyId: string;
-  assessmentResult: {
-    id: string;
-    patientId: string;
-    timestamp: string;
-    severity: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW';
-    riskScore: number;
-    recommendedResponseTimeMinutes: number;
-    esiLevel: 1 | 2 | 3 | 4 | 5;
-    reasoningSummary: string;
-    keyRiskFactors: string[];
-    requiredFacilities: Record<string, boolean>;
-    disclaimer: string;
-  };
-  recommendedHospitals: Hospital[];
-  message: string;
+export interface EmergencyCaseRead {
+  id: string;
+  patient_id: string;
+  reported_symptoms: string;
+  age: number | null;
+  latitude: number;
+  longitude: number;
+  severity: BackendSeverity;
+  priority_score: number | null;
+  status: BackendEmergencyCaseStatus;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SelectHospitalRequest {
@@ -334,12 +318,33 @@ export interface SelectHospitalRequest {
   hospitalId: string;
 }
 
+export interface QueueTokenView {
+  id: string;
+  hospital_id: string;
+  emergency_case_id: string | null;
+  token_number: string;
+  priority_level: number;
+  queue_position: number;
+  status: BackendQueueStatus;
+  patient_name: string | null;
+  case_severity: string | null;
+  case_age: number | null;
+  reported_symptoms: string | null;
+  called_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QueueResponse {
+  hospital_id: string;
+  view: string;
+  items: QueueTokenView[];
+}
+
 export interface SelectHospitalResponse {
-  emergencyId: string;
-  hospitalId: string;
-  queueToken: string;
-  estimatedWaitTime: number;
-  message: string;
+  emergency_id: string;
+  queue_token: QueueTokenView;
 }
 
 // ============================================================================
@@ -348,30 +353,20 @@ export interface SelectHospitalResponse {
 
 export interface GetQueueQuery {
   hospitalId: string;
-  status?: QueuePatient['status'];
 }
 
 export interface GetQueueResponse {
-  patients: QueuePatient[];
-  total: number;
-  criticalCount: number;
-  highCount: number;
-  moderateCount: number;
-  lowCount: number;
-}
-
-export interface GetQueueTokenResponse {
-  token: QueuePatient;
+  hospitalId: string;
+  view: string;
+  items: QueueTokenView[];
 }
 
 export interface UpdateQueueStatusRequest {
-  status: QueuePatient['status'];
-  assignedRoom?: string;
-  assignedDoctor?: string;
+  status: BackendQueueStatus;
 }
 
 export interface UpdateQueueStatusResponse {
-  token: QueuePatient;
+  token: QueueTokenView;
   message: string;
 }
 

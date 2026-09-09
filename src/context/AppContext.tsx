@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Hospital, Bed, Doctor, Room } from '../types/hospital';
 import { Ambulance, AmbulanceStatus } from '../types/ambulance';
 import { QueuePatient, QueueStatus } from '../types/queue';
@@ -14,8 +14,8 @@ import {
   INITIAL_PRE_ALERTS,
   hospitalToBeds
 } from '../services/mockData';
-import { 
-  UserGeoLocation, 
+import {
+  UserGeoLocation,
   reverseGeocodeCoords
 } from '../services/realHospitalService';
 import { mapService } from '../services/map/mapService';
@@ -24,35 +24,16 @@ import { hospitalService } from '../services/hospitalService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
-
-// ─── Demo credentials for prototype authentication ────────────────────────────
-const DEMO_CREDENTIALS: Array<{
-  email: string; password: string; role: UserRole;
-  name: string; hospitalId?: string; hospitalName?: string; badgeNumber?: string;
-}> = [
-  {
-    email: 'patient@mediflow.ai',
-    password: 'patient123',
-    role: 'patient',
-    name: 'Rohan Verma',
-  },
-  {
-    email: 'staff@mediflow.ai',
-    password: 'staff123',
-    role: 'hospital_staff',
-    name: 'Dr. Priya Rao',
-    hospitalId: 'hosp-citycare',
-    hospitalName: 'CityCare Medical Center',
-    badgeNumber: 'ER-7701',
-  },
-  {
-    email: 'admin@mediflow.ai',
-    password: 'admin123',
-    role: 'admin',
-    name: 'Director S. Menon',
-    badgeNumber: 'ADMIN-001',
-  },
-];
+import { authLogin, authGetCurrentUser, type AuthUser } from '../services/api/authApi';
+import { apiClient } from '../services/api/apiClient';
+import {
+  createEmergencyCase,
+  getEmergencyCase,
+  selectHospitalForCase,
+  getQueueForHospital,
+  updateQueueTokenStatus as updateQueueTokenStatusApi,
+} from '../services/api/emergencyApi';
+import type { EmergencyCaseRead, QueueTokenView, BackendQueueStatus } from '../types/api';
 
 export type JourneyStage = 
   | 'idle'
@@ -75,7 +56,9 @@ interface RerouteEventData {
 interface AppContextType {
   // Authentication
   isAuthenticated: boolean;
-  login: (email: string, password: string) => { success: boolean; error?: string; role?: UserRole };
+  authLoading: boolean;
+  sessionExpired: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   logout: () => void;
 
   // User & Role
@@ -109,6 +92,19 @@ interface AppContextType {
   assessmentResult: AssessmentResult | null;
   runEmergencyAssessment: (input: EmergencyAssessmentInput) => AssessmentResult;
   clearAssessment: () => void;
+
+  // Emergency Backend Integration
+  currentEmergencyCase: EmergencyCaseRead | null;
+  currentQueueToken: QueueTokenView | null;
+  emergencyLoading: boolean;
+  emergencyError: string | null;
+  submitEmergencyCase: (input: EmergencyAssessmentInput) => Promise<boolean>;
+  selectHospitalAndCreateToken: (hospitalId: string) => Promise<boolean>;
+  refreshQueueToken: () => Promise<void>;
+  refreshQueueForHospital: (hospitalId: string) => Promise<QueueTokenView[]>;
+  fetchStaffQueue: (hospitalId: string) => Promise<QueueTokenView[]>;
+  updateQueueTokenStatusByStaff: (tokenId: string, status: BackendQueueStatus) => Promise<boolean>;
+  clearEmergencyError: () => void;
 
   // Pre-Alert Workflow
   preAlerts: HospitalPreAlert[];
@@ -177,25 +173,18 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Authentication state
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authLoading, setAuthLoading] = useState<boolean>(true);
+  const [sessionExpired, setSessionExpired] = useState<boolean>(false);
 
-  // Role & User
+  // Role & User — starts as guest; restored from backend on mount
   const [currentUser, setCurrentUser] = useState<UserProfile>({
-    id: 'usr-1',
-    name: 'Dr. Priya Rao',
-    role: 'hospital_staff',
-    hospitalId: 'hosp-citycare',
-    hospitalName: 'CityCare Medical Center',
-    badgeNumber: 'ER-7701',
-    staffId: 'ER-7701',
-    email: 'priya.rao@citycare.org',
-    phone: '+91 80 4120 5501',
-    department: 'Emergency Department',
-    specialization: 'Emergency Medicine',
-    experienceYears: 12,
+    id: 'usr-guest',
+    name: 'Guest',
+    role: 'patient',
+    email: 'guest@mediflow.ai',
     accountStatus: 'active',
-    createdAt: 'Jan 2024',
+    createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
-    avatarInitials: 'PR'
   });
 
   // Theme preference (light/dark), applied to <html> root
@@ -219,6 +208,94 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setThemeState(next);
     soundFX.playChime();
   };
+
+  // ─── Role mapping: backend uppercase → frontend lowercase ──────────────────
+  const mapBackendRole = (backendRole: string): UserRole => {
+    switch (backendRole) {
+      case 'PATIENT': return 'patient';
+      case 'HOSPITAL_STAFF': return 'hospital_staff';
+      case 'ADMIN': return 'admin';
+      default: return 'patient';
+    }
+  };
+
+  // ─── Map backend user response to frontend UserProfile ─────────────────────
+  const mapUserFromBackend = (backendUser: AuthUser, token: string, expiresIn: number): UserProfile => {
+    const role = mapBackendRole(backendUser.role);
+    const profile: UserProfile = {
+      id: backendUser.id,
+      name: backendUser.full_name,
+      role,
+      email: backendUser.email,
+      phone: backendUser.phone || undefined,
+      avatarInitials: backendUser.full_name
+        .split(' ')
+        .map(w => w[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase(),
+      accessToken: token,
+      tokenExpiresAt: Date.now() + expiresIn * 1000,
+      accountStatus: 'active',
+      createdAt: backendUser.created_at,
+      lastLogin: new Date().toISOString(),
+    };
+
+    if (role === 'patient') {
+      profile.age = 48;
+      profile.gender = 'male';
+      profile.bloodGroup = 'O+';
+      profile.location = 'Bangalore, India';
+    } else if (role === 'hospital_staff') {
+      profile.staffId = 'ER-7701';
+      profile.department = 'Emergency Department';
+      profile.experienceYears = 12;
+    } else if (role === 'admin') {
+      profile.adminLevel = 'System Administrator';
+    }
+
+    return profile;
+  };
+
+  // ─── Token expiration check ───────────────────────────────────────────────
+  const isTokenExpired = (): boolean => {
+    const expiresAt = localStorage.getItem('auth_token_expires_at');
+    if (!expiresAt) return true;
+    return Date.now() > parseInt(expiresAt, 10);
+  };
+
+  // ─── Session restoration on mount ─────────────────────────────────────────
+  useEffect(() => {
+    const restoreSession = async () => {
+      const storedToken = localStorage.getItem('auth_token');
+      if (!storedToken || isTokenExpired()) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_token_expires_at');
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        apiClient.setAccessToken(storedToken);
+        const backendUser = await authGetCurrentUser();
+        const expiresAt = localStorage.getItem('auth_token_expires_at');
+        const expiresInMs = expiresAt ? parseInt(expiresAt, 10) - Date.now() : 28800 * 1000;
+        const expiresInSec = Math.max(0, Math.floor(expiresInMs / 1000));
+        const profile = mapUserFromBackend(backendUser, storedToken, expiresInSec);
+        setCurrentUser(profile);
+        setIsAuthenticated(true);
+      } catch {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_token_expires_at');
+        apiClient.setAccessToken(null);
+        setSessionExpired(true);
+      } finally {
+        setAuthLoading(false);
+      }
+    };
+
+    restoreSession();
+  }, []);
 
   // Live Location state - will be updated with real GPS coordinates
   const [userLiveLocation, setUserLiveLocation] = useState<UserGeoLocation>({
@@ -307,6 +384,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(INITIAL_AMBULANCES[0] || null);
   const [myQueueToken, setMyQueueToken] = useState<QueuePatient | null>(null);
   const [journeyStage, setJourneyStage] = useState<JourneyStage>('idle');
+
+  // Emergency backend integration state
+  const [currentEmergencyCase, setCurrentEmergencyCase] = useState<EmergencyCaseRead | null>(null);
+  const [currentQueueToken, setCurrentQueueToken] = useState<QueueTokenView | null>(null);
+  const [emergencyLoading, setEmergencyLoading] = useState(false);
+  const [emergencyError, setEmergencyError] = useState<string | null>(null);
+  const emergencySubmittingRef = useRef(false);
+  const emergencyTokenCreatingRef = useRef(false);
 
   // Hospital Staff Management state — derived from the SELECTED hospital's
   // single shared record (doctorList / roomsList) so staff writes are
@@ -492,54 +577,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [hospitals, assessmentResult]);
 
   // ─── Authentication ──────────────────────────────────────────────────────
-  const login = (email: string, password: string): { success: boolean; error?: string; role?: UserRole } => {
-    const cred = DEMO_CREDENTIALS.find(
-      c => c.email.toLowerCase() === email.toLowerCase() && c.password === password
-    );
-    if (!cred) {
-      return { success: false, error: 'Invalid email or password. Please check your credentials.' };
-    }
-    const profile: UserProfile = {
-      id: `usr-${cred.role}`,
-      name: cred.name,
-      role: cred.role,
-      hospitalId: cred.hospitalId,
-      hospitalName: cred.hospitalName,
-      badgeNumber: cred.badgeNumber,
-      email: cred.email,
-      avatarInitials: cred.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase(),
-      accountStatus: 'active',
-      createdAt: 'Jan 2024',
-      lastLogin: new Date().toISOString(),
-    };
+  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
+    try {
+      const response = await authLogin({ email, password });
+      const { access_token, expires_in, user } = response;
 
-    // Add role-specific fields
-    if (cred.role === 'patient') {
-      profile.age = 48;
-      profile.gender = 'male';
-      profile.phone = '+91 98765 43210';
-      profile.bloodGroup = 'O+';
-      profile.location = 'Bangalore, India';
-      profile.emergencyContact = '+91 98765 00000';
-      profile.medicalInfo = 'No allergies reported. Hypertension, Type 2 Diabetes.';
-    } else if (cred.role === 'hospital_staff') {
-      profile.staffId = cred.badgeNumber;
-      profile.phone = '+91 80 4120 5501';
-      profile.department = 'Emergency Department';
-      profile.specialization = 'Emergency Medicine';
-      profile.experienceYears = 12;
-    } else if (cred.role === 'admin') {
-      profile.phone = '+91 80 4120 5500';
-      profile.adminLevel = 'System Administrator';
-    }
+      apiClient.setAccessToken(access_token);
+      localStorage.setItem('auth_token_expires_at', String(Date.now() + expires_in * 1000));
 
-    setCurrentUser(profile);
-    setIsAuthenticated(true);
-    return { success: true, role: cred.role };
+      const profile = mapUserFromBackend(user, access_token, expires_in);
+      setCurrentUser(profile);
+      setIsAuthenticated(true);
+      setSessionExpired(false);
+
+      return { success: true, role: profile.role };
+    } catch (err: any) {
+      const message = err?.message || 'Login failed. Please check your credentials.';
+      return { success: false, error: message };
+    }
   };
 
   const logout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_token_expires_at');
+    apiClient.setAccessToken(null);
     setIsAuthenticated(false);
+    setSessionExpired(false);
     setCurrentUser({
       id: 'usr-guest',
       name: 'Guest',
@@ -554,6 +617,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setCurrentAssessmentInput(null);
     setMyQueueToken(null);
     setJourneyStage('idle');
+    setCurrentEmergencyCase(null);
+    setCurrentQueueToken(null);
+    setEmergencyError(null);
   };
 
   const setUserRole = (role: UserRole) => {
@@ -567,8 +633,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       hospitalId = 'hosp-citycare';
     } else if (role === 'admin') {
       name = 'Director S. Menon (Regional Health Board)';
-    } else if (role === 'paramedic') {
-      name = 'Ananya Sharma (EMT-Paramedic #17)';
     } else {
       name = 'Rohan Verma (Patient)';
     }
@@ -673,7 +737,159 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSelectedHospital(null);
     setMyQueueToken(null);
     setJourneyStage('idle');
+    setCurrentEmergencyCase(null);
+    setCurrentQueueToken(null);
+    setEmergencyError(null);
   };
+
+  // ─── Backend Emergency Case Submission ────────────────────────────────────
+  const submitEmergencyCase = async (input: EmergencyAssessmentInput): Promise<boolean> => {
+    if (emergencySubmittingRef.current) return false;
+    emergencySubmittingRef.current = true;
+    setEmergencyLoading(true);
+    setEmergencyError(null);
+
+    const symptomsText = input.selectedSymptoms.join(', ');
+    const severityFromEngine = (() => {
+      const r = evaluateEmergencyPriority(input);
+      return r.severity;
+    })();
+
+    const lat = input.coordinates?.lat ?? userLiveLocation.lat ?? 0;
+    const lng = input.coordinates?.lng ?? userLiveLocation.lng ?? 0;
+
+    try {
+      const backendCase = await createEmergencyCase({
+        reported_symptoms: symptomsText,
+        age: input.age,
+        latitude: lat,
+        longitude: lng,
+        severity: severityFromEngine,
+      });
+
+      setCurrentEmergencyCase(backendCase);
+      setCurrentAssessmentInput(input);
+
+      const localResult = evaluateEmergencyPriority(input);
+      setAssessmentResult(localResult);
+      setJourneyStage('assessed');
+
+      soundFX.playEmergencyAlert();
+      addNotification({
+        title: `Emergency Case Created: ${backendCase.severity}`,
+        message: `Case ${backendCase.id.slice(0, 8)}… registered. Priority: ${backendCase.priority_score ?? 'N/A'}/100.`,
+        type: 'emergency',
+      });
+
+      return true;
+    } catch (err: any) {
+      console.error('[EmergencyAPI] Failed to create case:', err);
+      const msg = err?.message || 'Failed to submit emergency case. Please try again.';
+      setEmergencyError(msg);
+
+      const localResult = evaluateEmergencyPriority(input);
+      setAssessmentResult(localResult);
+      setCurrentAssessmentInput(input);
+      setJourneyStage('assessed');
+
+      addNotification({
+        title: 'Emergency Case — Offline Mode',
+        message: `${msg} Using local prioritization.`,
+        type: 'emergency',
+      });
+
+      return false;
+    } finally {
+      setEmergencyLoading(false);
+      emergencySubmittingRef.current = false;
+    }
+  };
+
+  const selectHospitalAndCreateToken = async (hospitalId: string): Promise<boolean> => {
+    if (emergencyTokenCreatingRef.current) return false;
+    if (!currentEmergencyCase) return false;
+
+    emergencyTokenCreatingRef.current = true;
+    setEmergencyLoading(true);
+    setEmergencyError(null);
+
+    try {
+      const response = await selectHospitalForCase({
+        emergencyId: currentEmergencyCase.id,
+        hospitalId,
+      });
+
+      setCurrentQueueToken(response.queue_token);
+      const hosp = hospitals.find(h => h.id === hospitalId);
+      if (hosp) setSelectedHospital(hosp);
+      setJourneyStage('in_queue');
+
+      soundFX.playChime();
+      addNotification({
+        title: `Hospital Selected: ${hosp?.name || hospitalId}`,
+        message: `Queue token ${response.queue_token.token_number} assigned. Position: ${response.queue_token.queue_position}.`,
+        type: 'queue',
+      });
+
+      return true;
+    } catch (err: any) {
+      console.error('[EmergencyAPI] Failed to select hospital:', err);
+      const msg = err?.message || 'Failed to select hospital. Please try again.';
+      setEmergencyError(msg);
+      return false;
+    } finally {
+      setEmergencyLoading(false);
+      emergencyTokenCreatingRef.current = false;
+    }
+  };
+
+  const refreshQueueToken = async () => {
+    if (!currentQueueToken) return;
+    try {
+      const queueData = await getQueueForHospital(currentQueueToken.hospital_id);
+      const updated = queueData.items.find(t => t.id === currentQueueToken.id);
+      if (updated) setCurrentQueueToken(updated);
+    } catch {
+      // Silent fail — stale token data is acceptable
+    }
+  };
+
+  const refreshQueueForHospital = async (hospitalId: string): Promise<QueueTokenView[]> => {
+    try {
+      const queueData = await getQueueForHospital(hospitalId);
+      return queueData.items;
+    } catch {
+      return [];
+    }
+  };
+
+  const fetchStaffQueue = async (hospitalId: string): Promise<QueueTokenView[]> => {
+    try {
+      const queueData = await getQueueForHospital(hospitalId);
+      return queueData.items;
+    } catch {
+      return [];
+    }
+  };
+
+  const updateQueueTokenStatusByStaff = async (tokenId: string, status: BackendQueueStatus): Promise<boolean> => {
+    try {
+      await updateQueueTokenStatusApi(tokenId, status);
+      soundFX.playChime();
+      addNotification({
+        title: 'Queue Token Updated',
+        message: `Token status changed to ${status}.`,
+        type: 'queue',
+      });
+      return true;
+    } catch (err: any) {
+      console.error('[EmergencyAPI] Failed to update token:', err);
+      setEmergencyError(err?.message || 'Failed to update token status.');
+      return false;
+    }
+  };
+
+  const clearEmergencyError = () => setEmergencyError(null);
 
   // Pre-Alert Workflow
   const sendHospitalPreAlert = (hospital: Hospital, customNotes?: string): HospitalPreAlert => {
@@ -1108,6 +1324,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <AppContext.Provider
       value={{
         isAuthenticated,
+        authLoading,
+        sessionExpired,
         login,
         logout,
         currentUser,
@@ -1128,6 +1346,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         assessmentResult,
         runEmergencyAssessment,
         clearAssessment,
+        currentEmergencyCase,
+        currentQueueToken,
+        emergencyLoading,
+        emergencyError,
+        submitEmergencyCase,
+        selectHospitalAndCreateToken,
+        refreshQueueToken,
+        refreshQueueForHospital,
+        fetchStaffQueue,
+        updateQueueTokenStatusByStaff,
+        clearEmergencyError,
         preAlerts,
         activePreAlert,
         sendHospitalPreAlert,

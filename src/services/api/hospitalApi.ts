@@ -44,7 +44,7 @@ export async function getHospitals(
     hasICU: query?.hasICU,
     hasEmergency: query?.hasEmergency,
   });
-  return apiClient.get<GetHospitalsResponse>(`/hospitals${qs}`, token);
+  return apiClient.get<GetHospitalsResponse>(`/hospitals${qs}`);
 }
 
 /**
@@ -54,7 +54,7 @@ export async function getHospitalById(
   hospitalId: string,
   token?: string
 ): Promise<GetHospitalResponse> {
-  return apiClient.get<GetHospitalResponse>(`/hospitals/${hospitalId}`, token);
+  return apiClient.get<GetHospitalResponse>(`/hospitals/${hospitalId}`);
 }
 
 /**
@@ -67,8 +67,7 @@ export async function updateHospital(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}`,
-    data,
-    token
+    data
   );
 }
 
@@ -83,7 +82,7 @@ export async function getBeds(
     wardType: query.wardType,
     status: query.status,
   });
-  return apiClient.get<GetBedsResponse>(`/hospitals/${query.hospitalId}/beds${qs}`, token);
+  return apiClient.get<GetBedsResponse>(`/hospitals/${query.hospitalId}/beds${qs}`);
 }
 
 /**
@@ -97,8 +96,7 @@ export async function updateBed(
 ): Promise<UpdateBedResponse> {
   return apiClient.put<UpdateBedResponse>(
     `/hospitals/${hospitalId}/beds/${bedId}`,
-    data,
-    token
+    data
   );
 }
 
@@ -112,8 +110,7 @@ export async function updateHospitalBeds(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/beds/metrics`,
-    data,
-    token
+    data
   );
 }
 
@@ -127,8 +124,7 @@ export async function updateHospitalICU(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/icu/metrics`,
-    data,
-    token
+    data
   );
 }
 
@@ -142,8 +138,7 @@ export async function updateHospitalEmergencyRooms(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/emergency-rooms/metrics`,
-    data,
-    token
+    data
   );
 }
 
@@ -165,8 +160,7 @@ export async function updateHospitalQueue(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/queue/metrics`,
-    data,
-    token
+    data
   );
 }
 
@@ -180,8 +174,7 @@ export async function updateHospitalAmbulances(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/ambulances/metrics`,
-    data,
-    token
+    data
   );
 }
 
@@ -195,8 +188,7 @@ export async function updateHospitalCapabilities(
 ): Promise<UpdateHospitalResponse> {
   return apiClient.put<UpdateHospitalResponse>(
     `/hospitals/${hospitalId}/capabilities`,
-    data,
-    token
+    data
   );
 }
 
@@ -215,7 +207,7 @@ export async function getAmbulances(
   const endpoint = query?.hospitalId 
     ? `/hospitals/${query.hospitalId}/ambulances${qs}`
     : `/ambulances${qs}`;
-  return apiClient.get<GetAmbulancesResponse>(endpoint, token);
+  return apiClient.get<GetAmbulancesResponse>(endpoint);
 }
 
 /**
@@ -229,8 +221,7 @@ export async function updateAmbulance(
 ): Promise<UpdateAmbulanceResponse> {
   return apiClient.put<UpdateAmbulanceResponse>(
     `/hospitals/${hospitalId}/ambulances/${ambulanceId}`,
-    data,
-    token
+    data
   );
 }
 
@@ -244,7 +235,7 @@ export async function getQueue(
   const qs = buildQuery({
     status: query.status,
   });
-  return apiClient.get<GetQueueResponse>(`/hospitals/${query.hospitalId}/queue${qs}`, token);
+  return apiClient.get<GetQueueResponse>(`/hospitals/${query.hospitalId}/queue${qs}`);
 }
 
 /**
@@ -258,7 +249,6 @@ export async function updateQueuePatient(
 ): Promise<{ patient: any; message: string }> {
   return apiClient.put<{ patient: any; message: string }>(
     `/hospitals/${hospitalId}/queue/${patientId}`,
-    data,
-    token
+    data
   );
 }

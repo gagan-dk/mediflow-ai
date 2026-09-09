@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
+import { useHospitalSync } from '../hooks/useHospitalSync';
 
 interface PatientJourneyPageProps {
   navigate: (path: string) => void;
@@ -36,6 +37,14 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
   } = useApp();
 
   const hosp = selectedHospital || hospitals[0];
+  const hospId = hosp?.id || hosp?.hospitalId;
+  
+  const { hospital: syncedHospital, loading, lastUpdated, refetch } = useHospitalSync(hospId, { 
+    autoRefresh: true, 
+    ttl: 30000 
+  });
+  
+  const displayHospital = syncedHospital || hosp;
   const patientName = currentAssessmentInput?.patientName || 'Ramesh Sundaram';
   const tokenNumber = myQueueToken?.tokenNumber || '#A104';
 
@@ -136,16 +145,33 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
             <h2 className="text-xl font-bold text-white">{patientName} (48y)</h2>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Assigned Hospital</span>
-              <span className="font-bold text-sm text-brand-300">{hosp.name}</span>
+            <div className="flex items-center gap-3 flex-1">
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Assigned Hospital</span>
+                  <button
+                    onClick={() => refetch()}
+                    disabled={loading}
+                    className="text-[9px] font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1 transition disabled:opacity-50"
+                  >
+                    <span className={loading ? 'animate-spin' : ''}>↻ Refresh</span>
+                  </button>
+                </div>
+                <span className="font-bold text-sm text-brand-300">{displayHospital.name}</span>
+                {lastUpdated && (
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-slate-500" />
+                    <span className="text-[9px] text-slate-500">
+                      Last updated: {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="p-3 bg-white/10 rounded-2xl border border-white/15 text-center font-mono min-w-[80px]">
+                <span className="text-[9px] text-slate-400 block">EST. ARRIVAL</span>
+                <span className="text-xl font-extrabold text-emerald-400">{displayHospital.travelTimeMinutes} mins</span>
+              </div>
             </div>
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/15 text-center font-mono">
-              <span className="text-[9px] text-slate-400 block">EST. ARRIVAL</span>
-              <span className="text-xl font-extrabold text-emerald-400">{hosp.travelTimeMinutes} mins</span>
-            </div>
-          </div>
         </div>
 
         {/* Quick Driver / Paramedic Dispatch Card */}

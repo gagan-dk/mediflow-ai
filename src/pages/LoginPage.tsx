@@ -8,17 +8,17 @@ import {
   EyeOff,
   LogIn,
   AlertCircle,
-  Sparkles,
   HeartPulse,
   Lock,
   Mail,
-  ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { UserRole } from '../types/user';
 
 interface LoginPageProps {
   onLoginSuccess: (role: UserRole) => void;
+  sessionExpired?: boolean;
 }
 
 type RoleTab = 'patient' | 'hospital_staff' | 'admin';
@@ -29,8 +29,6 @@ interface RoleConfig {
   icon: React.FC<{ className?: string }>;
   emoji: string;
   description: string;
-  email: string;
-  password: string;
   gradient: string;
   accentColor: string;
   bgLight: string;
@@ -45,8 +43,6 @@ const ROLE_CONFIGS: RoleConfig[] = [
     icon: User,
     emoji: '👤',
     description: 'Access emergency assessment, track your ambulance, view your queue token, and follow your care journey.',
-    email: 'patient@mediflow.ai',
-    password: 'patient123',
     gradient: 'from-sky-600 to-blue-700',
     accentColor: 'text-sky-600',
     bgLight: 'bg-sky-50',
@@ -59,8 +55,6 @@ const ROLE_CONFIGS: RoleConfig[] = [
     icon: Stethoscope,
     emoji: '🩺',
     description: 'Full ER Command Center access — manage pre-alerts, coordinate incoming emergencies, and control bed allocation.',
-    email: 'staff@mediflow.ai',
-    password: 'staff123',
     gradient: 'from-emerald-600 to-teal-700',
     accentColor: 'text-emerald-600',
     bgLight: 'bg-emerald-50',
@@ -73,8 +67,6 @@ const ROLE_CONFIGS: RoleConfig[] = [
     icon: ShieldCheck,
     emoji: '🏢',
     description: 'Administrative oversight — full system analytics, regional load balancing, and hospital network management.',
-    email: 'admin@mediflow.ai',
-    password: 'admin123',
     gradient: 'from-purple-600 to-indigo-700',
     accentColor: 'text-purple-600',
     bgLight: 'bg-purple-50',
@@ -83,7 +75,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   },
 ];
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExpired }) => {
   const { login } = useApp();
   const [activeRole, setActiveRole] = useState<RoleTab>('patient');
   const [email, setEmail] = useState('');
@@ -102,12 +94,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setError('');
   };
 
-  const handleQuickFill = () => {
-    setEmail(currentConfig.email);
-    setPassword(currentConfig.password);
-    setError('');
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
@@ -117,16 +103,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     setIsLoading(true);
     setError('');
 
-    // Simulate async call
-    await new Promise(r => setTimeout(r, 700));
-
-    const result = login(email, password);
+    const result = await login(email, password);
     setIsLoading(false);
 
     if (result.success) {
       onLoginSuccess(result.role || 'patient');
     } else {
-      setError(result.error || 'Login failed.');
+      setError(result.error || 'Login failed. Please check your credentials.');
       setShake(true);
       setTimeout(() => setShake(false), 600);
     }
@@ -190,6 +173,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
 
           {/* Form Body */}
           <div className="p-7 space-y-6">
+            {/* Session Expired Banner */}
+            {sessionExpired && (
+              <div className="flex items-center gap-2 p-3 bg-amber-500/15 border border-amber-500/30 rounded-xl text-amber-300 text-xs font-medium">
+                <Clock className="w-4 h-4 shrink-0" />
+                <span>Your session has expired. Please sign in again.</span>
+              </div>
+            )}
+
             {/* Role Description Card */}
             <div className={`p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 ${currentConfig.bgLight} ${currentConfig.borderColor}`}>
               <div className="flex items-center gap-2">
@@ -216,7 +207,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
                     type="email"
                     value={email}
                     onChange={e => { setEmail(e.target.value); setError(''); }}
-                    placeholder={currentConfig.email}
+                    placeholder={`your.email@${currentConfig.key === 'hospital_staff' ? 'hospital.org' : 'example.com'}`}
                     autoComplete="email"
                     className="w-full px-4 py-3 bg-white/8 border border-white/15 text-white placeholder-slate-500 rounded-xl text-sm focus:outline-none focus:border-brand-500/60 focus:bg-white/10 transition"
                   />
@@ -275,20 +266,13 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
               </button>
             </form>
 
-            {/* Quick Fill Demo Button */}
+            {/* Helper Text */}
             <div className="pt-1">
-              <div className="text-center text-[10px] text-slate-500 font-medium mb-2">— Demo / Prototype Credentials —</div>
-              <button
-                type="button"
-                onClick={handleQuickFill}
-                className="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-semibold transition flex items-center justify-center gap-2"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Auto-fill {currentConfig.label} credentials
-                <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
-              </button>
+              <div className="text-center text-[10px] text-slate-500 font-medium leading-relaxed">
+                Use the credentials provided by your organization administrator.
+              </div>
               <p className="text-center text-[10px] text-slate-600 mt-2">
-                {currentConfig.email} / {currentConfig.password}
+                Patient accounts can also be registered via the API.
               </p>
             </div>
           </div>

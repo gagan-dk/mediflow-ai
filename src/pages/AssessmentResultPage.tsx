@@ -17,7 +17,9 @@ import {
   Check, 
   X, 
   Share2, 
-  AlertTriangle 
+  AlertTriangle,
+  Loader2,
+  Ticket
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
@@ -34,18 +36,27 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
     selectedHospital, 
     setSelectedHospital, 
     sendHospitalPreAlert, 
-    generatePatientToken 
+    generatePatientToken,
+    currentEmergencyCase,
+    emergencyLoading,
+    emergencyError,
+    selectHospitalAndCreateToken,
+    currentQueueToken
   } = useApp();
 
   const [preAlertSentSuccess, setPreAlertSentSuccess] = useState(false);
+  const [selectingHospital, setSelectingHospital] = useState(false);
+  const [selectError, setSelectError] = useState<string | null>(null);
 
-  // If no assessment exists yet, use top ranked hospital as default
   const topRanked = rankedHospitals.find(r => r.isEligible) || rankedHospitals[0];
   const recommendedHospital = selectedHospital || topRanked?.hospital;
   const currentRankedItem = rankedHospitals.find(r => r.hospital.id === recommendedHospital?.id) || topRanked;
 
   const severity = assessmentResult?.severity || 'CRITICAL';
-  const riskScore = assessmentResult?.riskScore || 94;
+  const localRiskScore = assessmentResult?.riskScore || 94;
+  const backendPriorityScore = currentEmergencyCase?.priority_score;
+  const displayScore = backendPriorityScore ?? localRiskScore;
+  const scoreLabel = backendPriorityScore != null ? 'AI-Assisted Prioritization Score' : 'Priority/Risk Score';
   const esiLevel = assessmentResult?.esiLevel || 1;
 
   const handleSendPreAlert = () => {
@@ -55,14 +66,28 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
     }
   };
 
-  const handleGetQueueToken = () => {
-    if (recommendedHospital) {
-      generatePatientToken(
-        currentAssessmentInput?.patientName || 'Emergency Patient',
-        severity,
-        recommendedHospital.id
-      );
+  const handleSelectHospitalAndQueue = async () => {
+    if (!recommendedHospital || selectingHospital) return;
+
+    if (currentQueueToken) {
       navigate('/queue');
+      return;
+    }
+
+    setSelectingHospital(true);
+    setSelectError(null);
+
+    try {
+      const success = await selectHospitalAndCreateToken(recommendedHospital.id);
+      if (success) {
+        navigate('/queue');
+      } else {
+        setSelectError('Failed to create queue token. Please try again.');
+      }
+    } catch {
+      setSelectError('An unexpected error occurred. Please try again.');
+    } finally {
+      setSelectingHospital(false);
     }
   };
 
@@ -88,7 +113,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
             ? 'bg-gradient-to-r from-amber-500 to-yellow-600'
             : 'bg-gradient-to-r from-emerald-600 to-teal-600'
         }`}>
-          {/* Subtle background graphics */}
           <div className="absolute right-0 top-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none" />
 
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
@@ -109,13 +133,12 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
               </p>
             </div>
 
-            {/* Risk Score Pill */}
             <div className="p-4 bg-white/15 backdrop-blur-md rounded-2xl border border-white/25 text-center shrink-0 min-w-[140px]">
               <span className="text-[11px] uppercase tracking-wider text-white/80 font-semibold block">
-                Priority/Risk Score
+                {scoreLabel}
               </span>
               <div className="text-4xl font-extrabold font-mono text-white mt-0.5">
-                {riskScore}<span className="text-lg font-normal text-white/70">/100</span>
+                {displayScore}<span className="text-lg font-normal text-white/70">/100</span>
               </div>
               <span className="text-[10px] text-white/80 font-medium">
                 {severity === 'CRITICAL' ? 'Immediate Response' : '< 15 min Response'}
@@ -124,13 +147,36 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
           </div>
         </div>
 
-        {/* Safety Disclaimer Banner */}
         <DisclaimerBanner />
       </div>
 
+      {/* Backend Case Status */}
+      {currentEmergencyCase && (
+        <div className="flex items-center gap-3 p-4 bg-sky-50 border border-sky-200 rounded-2xl">
+          <div className="p-2 bg-sky-100 text-sky-700 rounded-xl">
+            <CheckCircle2 className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-sky-900">Emergency Case Registered</p>
+            <p className="text-[11px] text-sky-700 mt-0.5">
+              Case ID: {currentEmergencyCase.id.slice(0, 8)}… | Status: {currentEmergencyCase.status} | Backend Priority: {currentEmergencyCase.priority_score ?? 'Pending'}
+            </p>
+          </div>
+          {currentEmergencyCase.severity && (
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase ${
+              currentEmergencyCase.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+              currentEmergencyCase.severity === 'HIGH' ? 'bg-amber-100 text-amber-800' :
+              currentEmergencyCase.severity === 'MODERATE' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-emerald-100 text-emerald-800'
+            }`}>
+              {currentEmergencyCase.severity}
+            </span>
+          )}
+        </div>
+      )}
+
       {/* Patient Summary & Detected Required Facilities */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Patient Details */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
             <Activity className="w-4 h-4 text-brand-600" />
@@ -158,7 +204,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
           </div>
         </div>
 
-        {/* Required Facilities Detected */}
         <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3 md:col-span-2">
           <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-emerald-600" />
@@ -201,7 +246,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
       {/* Recommended Hospital Spotlight Card */}
       {recommendedHospital && currentRankedItem && (
         <div className="bg-white rounded-3xl border-2 border-brand-500 shadow-xl overflow-hidden space-y-6">
-          {/* Spotlight Header */}
           <div className="bg-gradient-to-r from-brand-600 to-sky-600 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-white/20 rounded-lg">
@@ -222,7 +266,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
             </div>
           </div>
 
-          {/* Core Hospital Details & Telemetry */}
           <div className="px-6 space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
@@ -274,7 +317,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
               </div>
             </div>
 
-            {/* Explainable AI: Why This Hospital? */}
             <div className="p-4 bg-sky-50/70 border border-sky-200 rounded-2xl space-y-2">
               <div className="flex items-center gap-2">
                 <div className="p-1 bg-sky-600 text-white rounded">
@@ -289,7 +331,6 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
               </p>
             </div>
 
-            {/* Transparent MCDA Score Breakdown */}
             <div className="space-y-3 pt-2">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                 Transparent Multi-Criteria Decision Breakdown (MCDA)
@@ -382,14 +423,70 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
               </button>
 
               <button
-                onClick={handleNavigateToJourney}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white text-xs font-bold rounded-xl shadow-lg shadow-brand-500/25 transition transform active:scale-95"
+                onClick={handleSelectHospitalAndQueue}
+                disabled={selectingHospital || emergencyLoading}
+                className={`flex items-center gap-2 px-6 py-3 text-xs font-bold rounded-xl shadow-lg transition transform active:scale-95 ${
+                  selectingHospital || emergencyLoading
+                    ? 'bg-slate-400 text-white cursor-not-allowed shadow-none'
+                    : currentQueueToken
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/25'
+                    : 'bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white shadow-brand-500/25'
+                }`}
               >
-                <span>Navigate &amp; Track Journey</span>
-                <ArrowRight className="w-4 h-4" />
+                {selectingHospital || emergencyLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>{selectingHospital ? 'Selecting Hospital…' : 'Creating Queue Token…'}</span>
+                  </>
+                ) : currentQueueToken ? (
+                  <>
+                    <Ticket className="w-4 h-4" />
+                    <span>View Queue Token</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Select Hospital &amp; Join Queue</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Error Banner for Hospital Selection */}
+      {selectError && (
+        <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-red-800">Hospital Selection Error</p>
+            <p className="text-xs text-red-700 mt-0.5">{selectError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectError(null)}
+            className="p-1 text-red-500 hover:text-red-700 transition shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {emergencyError && (
+        <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-amber-800">Backend Error</p>
+            <p className="text-xs text-amber-700 mt-0.5">{emergencyError}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {}}
+            className="p-1 text-amber-500 hover:text-amber-700 transition shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
       )}
     </div>

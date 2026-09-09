@@ -8,13 +8,17 @@ import {
   AlertTriangle,
   CheckCircle2,
   Save,
-  RotateCcw
+  RotateCcw,
+  Loader
 } from 'lucide-react';
 import { Hospital } from '../types/hospital';
 import { useApp } from '../context/AppContext';
+import { staffApi } from '../services/api/staffApi';
 
 interface HospitalOperationalDataEditorProps {
   hospital: Hospital;
+  staffToken?: string | null;
+  onSuccess?: () => void;
 }
 
 interface MetricFieldProps {
@@ -49,7 +53,7 @@ const MetricField: React.FC<MetricFieldProps> = ({ label, value, onChange, min =
  * (hospitalService) so the Patient Find Hospital view and the AI ranking
  * re-compute from the exact same numbers, live, without a page refresh.
  */
-export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEditorProps> = ({ hospital }) => {
+export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEditorProps> = ({ hospital, staffToken, onSuccess }) => {
   const {
     updateHospital,
     updateHospitalICU,
@@ -62,6 +66,7 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
     addNotification
   } = useApp();
 
+  const [saving, setSaving] = useState(false);
   const [icuTotal, setIcuTotal] = useState(hospital.icu?.total ?? hospital.totalICUBeds ?? 0);
   const [icuAvailable, setIcuAvailable] = useState(hospital.icu?.available ?? hospital.availableICUBeds ?? 0);
   const [bedTotal, setBedTotal] = useState(hospital.beds?.total ?? hospital.totalBeds ?? 0);
@@ -88,46 +93,68 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
   };
 
   const handleSave = async () => {
-     await Promise.all([
-      updateHospitalICU(hospital.hospitalId, {
-        total: icuTotal,
-        available: Math.min(icuAvailable, icuTotal),
-        occupied: Math.max(0, icuTotal - icuAvailable),
-        reserved: 0,
-      }),
-      updateHospitalBeds(hospital.hospitalId, {
-        total: bedTotal,
-        available: Math.min(bedAvailable, bedTotal),
-        occupied: Math.max(0, bedTotal - bedAvailable),
-        reserved: 0,
-      }),
-      updateHospitalEmergencyRooms(hospital.hospitalId, {
-        total: erTotal,
-        available: Math.min(erAvailable, erTotal),
-        occupied: Math.max(0, erTotal - erAvailable),
-        cleaning: 0,
-      }),
-      updateHospitalQueue(hospital.hospitalId, {
-        estimatedWaitTimeMinutes: waitMinutes,
-        currentERLoadPercent: Math.min(100, erLoad),
-        totalPatients: Math.max(0, Math.round((erLoad / 100) * (erTotal + icuTotal))),
-      }),
-      updateHospitalAmbulances(hospital.hospitalId, {
-        available: ambulancesAvailable,
-        total: Math.max(ambulancesAvailable, hospital.ambulances?.total ?? ambulancesAvailable),
-      }),
-      updateHospitalCapabilities(hospital.hospitalId, facilities),
-    ]);
-    const latest = await updateHospital({
-      ...hospital,
-      operationalDataAvailable: true,
-    });
+    setSaving(true);
+    try {
+      if (staffToken) {
+        await staffApi.updateOperations({
+          current_er_load: Math.min(100, erLoad),
+          estimated_wait_minutes: waitMinutes,
+          available_ambulances: ambulancesAvailable,
+        }, staffToken);
+      }
 
-    addNotification({
-      title: '✅ Hospital Operational Data Saved',
-      message: `${latest.name}: ${icuAvailable} ICU beds, ${bedAvailable} general beds, ${erAvailable} emergency rooms — now live for patients & AI ranking.`,
-      type: 'system',
-    });
+      await Promise.all([
+        updateHospitalICU(hospital.hospitalId || hospital.id, {
+          total: icuTotal,
+          available: Math.min(icuAvailable, icuTotal),
+          occupied: Math.max(0, icuTotal - icuAvailable),
+          reserved: 0,
+        }),
+        updateHospitalBeds(hospital.hospitalId || hospital.id, {
+          total: bedTotal,
+          available: Math.min(bedAvailable, bedTotal),
+          occupied: Math.max(0, bedTotal - bedAvailable),
+          reserved: 0,
+        }),
+        updateHospitalEmergencyRooms(hospital.hospitalId || hospital.id, {
+          total: erTotal,
+          available: Math.min(erAvailable, erTotal),
+          occupied: Math.max(0, erTotal - erAvailable),
+          cleaning: 0,
+        }),
+        updateHospitalQueue(hospital.hospitalId || hospital.id, {
+          estimatedWaitTimeMinutes: waitMinutes,
+          currentERLoadPercent: Math.min(100, erLoad),
+          totalPatients: Math.max(0, Math.round((erLoad / 100) * (erTotal + icuTotal))),
+        }),
+        updateHospitalAmbulances(hospital.hospitalId || hospital.id, {
+          available: ambulancesAvailable,
+          total: Math.max(ambulancesAvailable, hospital.ambulances?.total ?? ambulancesAvailable),
+        }),
+        updateHospitalCapabilities(hospital.hospitalId || hospital.id, facilities),
+      ]);
+
+      const latest = await updateHospital({
+        ...hospital,
+        operationalDataAvailable: true,
+      });
+
+      addNotification({
+        title: 'Success',
+        message: `${latest.name}: ${icuAvailable} ICU beds, ${bedAvailable} general beds, ${erAvailable} emergency rooms — now live for patients.`,
+        type: 'success',
+      });
+
+      onSuccess?.();
+    } catch (error) {
+      addNotification({
+        title: 'Error',
+        message: 'Failed to save operational data. Please try again.',
+        type: 'error',
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleResetToEmpty = () => {
@@ -209,7 +236,7 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
         </div>
       </div>
 
-      {/* Actions */}
+{/* Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           onClick={handleResetToEmpty}
@@ -220,10 +247,15 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
         </button>
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-md shadow-brand-600/20 transition"
+          disabled={saving}
+          className="flex items-center gap-2 px-6 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white rounded-xl text-sm font-bold shadow-md shadow-brand-600/20 transition"
         >
-          <Save className="w-4 h-4" />
-          Save &amp; Publish to Patients
+          {saving ? (
+            <Loader className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {saving ? 'Saving...' : 'Save & Publish to Patients'}
         </button>
       </div>
 

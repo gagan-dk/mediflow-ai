@@ -26,7 +26,7 @@ export async function getBeds(
     wardType: query.wardType,
     status: query.status,
   });
-  return apiClient.get<GetBedsResponse>(`/beds${qs}`, token);
+  return apiClient.get<GetBedsResponse>(`/beds${qs}`);
 }
 
 export async function updateBed(
@@ -34,5 +34,5 @@ export async function updateBed(
   data: UpdateBedRequest,
   token: string
 ): Promise<UpdateBedResponse> {
-  return apiClient.put<UpdateBedResponse>(`/beds/${bedId}`, data, token);
+  return apiClient.put<UpdateBedResponse>(`/beds/${bedId}`, data);
 }

@@ -30,8 +30,7 @@ export async function getDoctors(
     department: query.department,
   });
   return apiClient.get<GetDoctorsResponse>(
-    `/hospitals/${query.hospitalId}/doctors${qs}`,
-    token
+    `/hospitals/${query.hospitalId}/doctors${qs}`
   );
 }
 
@@ -41,8 +40,7 @@ export async function getDoctorById(
   token?: string
 ): Promise<CreateDoctorResponse> {
   return apiClient.get<CreateDoctorResponse>(
-    `/hospitals/${hospitalId}/doctors/${doctorId}`,
-    token
+    `/hospitals/${hospitalId}/doctors/${doctorId}`
   );
 }
 
@@ -52,8 +50,7 @@ export async function createDoctor(
 ): Promise<CreateDoctorResponse> {
   return apiClient.post<CreateDoctorResponse>(
     `/hospitals/${data.hospitalId}/doctors`,
-    data,
-    token
+    data
   );
 }
 
@@ -65,8 +62,7 @@ export async function updateDoctor(
 ): Promise<UpdateDoctorResponse> {
   return apiClient.put<UpdateDoctorResponse>(
     `/hospitals/${hospitalId}/doctors/${doctorId}`,
-    data,
-    token
+    data
   );
 }
 
@@ -76,7 +72,6 @@ export async function deleteDoctor(
   token: string
 ): Promise<DeleteDoctorResponse> {
   return apiClient.delete<DeleteDoctorResponse>(
-    `/hospitals/${hospitalId}/doctors/${doctorId}`,
-    token
+    `/hospitals/${hospitalId}/doctors/${doctorId}`
   );
 }

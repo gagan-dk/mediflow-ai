@@ -22,7 +22,6 @@ import {
   Settings
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { UserRole } from '../types/user';
 import { NotificationDrawer } from './NotificationDrawer';
 
 interface NavbarProps {
@@ -33,16 +32,13 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const { 
     currentUser, 
-    setUserRole, 
     simulateHospitalBecomingFull, 
     notifications,
     isAuthenticated,
     logout,
-    login
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [isNotificationDrawerOpen, setIsNotificationDrawerOpen] = useState(false);
   const [isEmergencyCallModalOpen, setIsEmergencyCallModalOpen] = useState(false);
@@ -50,24 +46,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const navLinks = [
-    { label: 'Home', path: '/', icon: Activity },
-    { label: 'Emergency Prioritization', path: '/assessment', icon: ShieldAlert },
-    ...(currentUser.role === 'hospital_staff' 
-      ? [{ label: 'Hospital', path: '/hospital', icon: Hospital }] 
-      : [{ label: 'Find Hospital', path: '/finder', icon: Hospital }]
+    { label: 'Home', path: '/', icon: Activity, roles: ['patient', 'hospital_staff', 'admin'] },
+    { label: 'Emergency Prioritization', path: '/assessment', icon: ShieldAlert, roles: ['patient', 'hospital_staff', 'admin'] },
+    ...(currentUser.role === 'hospital_staff'
+      ? [{ label: 'Hospital', path: '/hospital', icon: Hospital, roles: ['hospital_staff'] }]
+      : [{ label: 'Find Hospital', path: '/finder', icon: Hospital, roles: ['patient', 'admin'] }]
     ),
-    { label: 'Live Queue', path: '/queue', icon: Clock },
-    { label: 'My Journey', path: '/journey', icon: Navigation },
-    { label: 'Command Center', path: '/command-center', icon: BarChart3 },
-    { label: 'Ambulances', path: '/ambulances', icon: Truck },
-    { label: 'System Insights', path: '/insights', icon: Sparkles },
-    { label: 'Privacy & Safety', path: '/privacy', icon: Lock }
-  ];
-
-  const handleRoleSelect = (role: UserRole) => {
-    setUserRole(role);
-    setIsRoleDropdownOpen(false);
-  };
+    { label: 'Live Queue', path: '/queue', icon: Clock, roles: ['patient', 'hospital_staff', 'admin'] },
+    { label: 'My Journey', path: '/journey', icon: Navigation, roles: ['patient'] },
+    { label: 'Command Center', path: '/command-center', icon: BarChart3, roles: ['hospital_staff', 'admin'] },
+    { label: 'Ambulances', path: '/ambulances', icon: Truck, roles: ['hospital_staff', 'admin'] },
+    { label: 'System Insights', path: '/insights', icon: Sparkles, roles: ['admin'] },
+    { label: 'Privacy & Safety', path: '/privacy', icon: Lock, roles: ['patient', 'hospital_staff', 'admin'] }
+  ].filter(link => (link.roles as string[]).includes(currentUser.role));
 
   const handleNavClick = (path: string) => {
     navigate(path);
@@ -193,55 +184,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
                      )}
                    </div>
                  </div>
-               ) : (
-                /* Role Switcher (demo purposes only) */
-                <div className="relative hidden sm:block">
-                  <button
-                    onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium transition"
-                  >
-                    <User className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="capitalize text-[11px] max-w-[90px] truncate">{currentUser.role.replace('_', ' ')}</span>
-                    <ChevronDown className="w-3 h-3 text-slate-400" />
-                  </button>
-
-                  {isRoleDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-50 animate-fade-in">
-                      <div className="px-3 py-1.5 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-400">
-                        Switch Demo Perspective
-                      </div>
-                      <button
-                        onClick={() => handleRoleSelect('patient')}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'patient' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
-                      >
-                        <span>👤 Patient / Caregiver</span>
-                        {currentUser.role === 'patient' && <span className="text-[10px] text-brand-600">Active</span>}
-                      </button>
-                      <button
-                        onClick={() => handleRoleSelect('hospital_staff')}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'hospital_staff' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
-                      >
-                        <span>🩺 ER Doctor / Triage Nurse</span>
-                        {currentUser.role === 'hospital_staff' && <span className="text-[10px] text-brand-600">Active</span>}
-                      </button>
-                      <button
-                        onClick={() => handleRoleSelect('paramedic')}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'paramedic' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
-                      >
-                        <span>🚑 EMS Paramedic</span>
-                        {currentUser.role === 'paramedic' && <span className="text-[10px] text-brand-600">Active</span>}
-                      </button>
-                      <button
-                        onClick={() => handleRoleSelect('admin')}
-                        className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-50 ${currentUser.role === 'admin' ? 'font-bold text-brand-600' : 'text-slate-700'}`}
-                      >
-                        <span>🏢 Hospital Admin / Director</span>
-                        {currentUser.role === 'admin' && <span className="text-[10px] text-brand-600">Active</span>}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+               ) : null}
 
               {/* Notification Bell */}
               <button

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   BarChart3, 
   Users, 
@@ -20,7 +20,8 @@ import {
   ArrowRight,
   TrendingUp,
   PieChart as PieChartIcon,
-  MapPin
+  MapPin,
+  Loader2
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -43,6 +44,25 @@ import { QueueStatus } from '../types/queue';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
 import { mapService } from '../services/map/mapService';
 import { getAllQuotaStatuses } from '../services/map/apiQuotaService';
+import type { QueueTokenView, BackendQueueStatus } from '../types/api';
+import type { QueuePatient } from '../types/queue';
+import type { SeverityLevel } from '../types/hospital';
+
+const mapBackendSeverity = (s: string | null): SeverityLevel => {
+  if (s === 'CRITICAL' || s === 'HIGH' || s === 'MODERATE' || s === 'LOW') return s;
+  return 'MODERATE';
+};
+
+const mapBackendQueueStatus = (s: BackendQueueStatus): QueueStatus => {
+  switch (s) {
+    case 'WAITING': return 'Waiting';
+    case 'CALLED': return 'Under Assessment';
+    case 'IN_PROGRESS': return 'Treatment';
+    case 'COMPLETED': return 'Discharged';
+    case 'CANCELLED': return 'Discharged';
+    default: return 'Waiting';
+  }
+};
 
 export const HospitalCommandCenterPage: React.FC = () => {
   const { 
@@ -54,11 +74,69 @@ export const HospitalCommandCenterPage: React.FC = () => {
     queuePatients, 
     updateQueuePatientStatus, 
     preAlerts, 
-    ambulances 
+    ambulances,
+    fetchStaffQueue,
+    updateQueueTokenStatusByStaff
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'queue' | 'beds' | 'analytics'>('overview');
   const [selectedPreAlertForModal, setSelectedPreAlertForModal] = useState<HospitalPreAlert | null>(null);
+
+  // Backend queue state for staff
+  const [backendQueue, setBackendQueue] = useState<QueueTokenView[]>([]);
+  const [backendQueueLoading, setBackendQueueLoading] = useState(false);
+  const [backendQueueError, setBackendQueueError] = useState<string | null>(null);
+
+  const staffHospitalId = currentUser.hospitalId || selectedHospital?.id;
+
+  const fetchBackendStaffQueue = useCallback(async () => {
+    if (!staffHospitalId) return;
+    setBackendQueueLoading(true);
+    setBackendQueueError(null);
+    try {
+      const items = await fetchStaffQueue(staffHospitalId);
+      setBackendQueue(items);
+    } catch {
+      setBackendQueueError('Unable to fetch queue from server. Showing local data.');
+    } finally {
+      setBackendQueueLoading(false);
+    }
+  }, [staffHospitalId, fetchStaffQueue]);
+
+  useEffect(() => {
+    if (staffHospitalId) {
+      fetchBackendStaffQueue();
+    }
+  }, [staffHospitalId, fetchBackendStaffQueue]);
+
+  const backendTokenToQueuePatient = (token: QueueTokenView): QueuePatient => ({
+    id: token.id,
+    tokenNumber: token.token_number,
+    patientName: token.patient_name || 'Unknown Patient',
+    age: token.case_age || 0,
+    gender: 'male',
+    severity: mapBackendSeverity(token.case_severity),
+    symptoms: token.reported_symptoms ? token.reported_symptoms.split(',').map(s => s.trim()) : [],
+    arrivalTime: token.created_at,
+    estimatedWaitMinutes: 0,
+    status: mapBackendQueueStatus(token.status),
+    assignedDoctor: token.status === 'IN_PROGRESS' ? 'Assigned' : undefined,
+    assignedRoom: token.status === 'IN_PROGRESS' ? 'Treatment Bay' : undefined,
+    hospitalId: token.hospital_id,
+    queuePosition: token.queue_position,
+  });
+
+  const hasBackendQueue = backendQueue.length > 0;
+  const displayQueue: QueuePatient[] = hasBackendQueue
+    ? backendQueue.map(backendTokenToQueuePatient)
+    : queuePatients;
+
+  const handleBackendStatusUpdate = async (tokenId: string, newStatus: BackendQueueStatus) => {
+    const success = await updateQueueTokenStatusByStaff(tokenId, newStatus);
+    if (success) {
+      fetchBackendStaffQueue();
+    }
+  };
 
   // RBAC: only hospital_staff and admin can manage pre-alerts
   const canManagePreAlerts = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
@@ -78,7 +156,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const totalICUBeds = primaryHospital.totalICUBeds;
   const availableICUBeds = primaryHospital.availableICUBeds;
   const avgWait = primaryHospital.estimatedWaitTimeMinutes;
-  const activeEmergencyCases = queuePatients.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
+  const activeEmergencyCases = displayQueue.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
 
   // Chart Mock Telemetry Data
   const hourlyArrivalData = [
@@ -149,7 +227,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
               activeTab === 'queue' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            ER Queue ({queuePatients.length})
+            ER Queue ({displayQueue.length})
           </button>
           <button
             onClick={() => setActiveTab('beds')}
@@ -488,12 +566,26 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-slate-900 text-sm">Emergency Department Active Triage Queue</h3>
               <p className="text-xs text-slate-500">
-                {canManageOperations ? 'Staff controls for advancing patient care workflows and room assignment.' : 'View-only access to current queue status.'}
+                {hasBackendQueue ? 'Live data from backend server.' : canManageOperations ? 'Staff controls for advancing patient care workflows and room assignment.' : 'View-only access to current queue status.'}
               </p>
             </div>
-            <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-mono font-semibold">
-              {queuePatients.length} Active Patients Registered
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={fetchBackendStaffQueue}
+                disabled={backendQueueLoading}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold transition"
+              >
+                {backendQueueLoading ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3 h-3" />
+                )}
+                <span>Refresh</span>
+              </button>
+              <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-mono font-semibold">
+                {displayQueue.length} Active Patients Registered
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">
@@ -511,7 +603,9 @@ export const HospitalCommandCenterPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {queuePatients.map(patient => (
+                {displayQueue.map(patient => {
+                  const backendToken = hasBackendQueue ? backendQueue.find(t => t.id === patient.id) : null;
+                  return (
                   <tr key={patient.id} className="hover:bg-slate-50/80 transition">
                     <td className="py-3 font-mono font-bold text-slate-900">
                       {patient.tokenNumber}
@@ -537,7 +631,19 @@ export const HospitalCommandCenterPage: React.FC = () => {
                       {patient.estimatedWaitMinutes}m
                     </td>
                     <td className="py-3">
-                      {canManageOperations ? (
+                      {backendToken && canManageOperations ? (
+                        <select
+                          value={backendToken.status}
+                          onChange={(e) => handleBackendStatusUpdate(backendToken.id, e.target.value as BackendQueueStatus)}
+                          className="px-2 py-1 bg-slate-50 border border-slate-200 rounded text-xs font-medium focus:outline-none"
+                        >
+                          <option value="WAITING">Waiting</option>
+                          <option value="CALLED">Called</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="COMPLETED">Completed</option>
+                          <option value="CANCELLED">Cancelled</option>
+                        </select>
+                      ) : canManageOperations ? (
                         <select
                           value={patient.status}
                           onChange={(e) => updateQueuePatientStatus(patient.id, e.target.value as QueueStatus)}
@@ -567,25 +673,54 @@ export const HospitalCommandCenterPage: React.FC = () => {
                     {canManageOperations && (
                       <td className="py-3 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => updateQueuePatientStatus(patient.id, 'Treatment', 'Dr. Priya Rao', 'Resus Bay 1')}
-                            className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
-                            title="Move to Treatment"
-                          >
-                            Treat
-                          </button>
-                          <button
-                            onClick={() => updateQueuePatientStatus(patient.id, 'Discharged')}
-                            className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold transition"
-                            title="Mark Discharged"
-                          >
-                            Discharge
-                          </button>
+                          {backendToken ? (
+                            <>
+                              <button
+                                onClick={() => handleBackendStatusUpdate(backendToken.id, 'CALLED')}
+                                className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
+                                title="Call Patient"
+                              >
+                                Call
+                              </button>
+                              <button
+                                onClick={() => handleBackendStatusUpdate(backendToken.id, 'IN_PROGRESS')}
+                                className="px-2 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded font-semibold transition"
+                                title="Start Treatment"
+                              >
+                                Treat
+                              </button>
+                              <button
+                                onClick={() => handleBackendStatusUpdate(backendToken.id, 'COMPLETED')}
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold transition"
+                                title="Mark Complete"
+                              >
+                                Done
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => updateQueuePatientStatus(patient.id, 'Treatment', 'Dr. Priya Rao', 'Resus Bay 1')}
+                                className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
+                                title="Move to Treatment"
+                              >
+                                Treat
+                              </button>
+                              <button
+                                onClick={() => updateQueuePatientStatus(patient.id, 'Discharged')}
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded font-semibold transition"
+                                title="Mark Discharged"
+                              >
+                                Discharge
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     )}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

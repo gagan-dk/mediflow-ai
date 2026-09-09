@@ -88,12 +88,6 @@ export const ProfilePage: React.FC = () => {
           icon: Shield,
           color: 'bg-purple-100 text-purple-700 border-purple-300',
         };
-      case 'paramedic':
-        return {
-          label: 'Paramedic',
-          icon: Activity,
-          color: 'bg-amber-100 text-amber-700 border-amber-300',
-        };
       default:
         return {
           label: 'User',
