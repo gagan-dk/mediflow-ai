@@ -30,7 +30,7 @@ interface RoomManagementProps {
 
 export const RoomManagement: React.FC<RoomManagementProps> = ({
   rooms,
-  hospitalId = 'hosp-citycare',
+  hospitalId = '',
   onAddRoom,
   onUpdateRoom,
   onRemoveRoom,

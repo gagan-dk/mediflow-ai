@@ -40,16 +40,16 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
   const { submitEmergencyCase, emergencyLoading, emergencyError, clearEmergencyError, currentEmergencyCase } = useApp();
 
   // Form State
-  const [patientName, setPatientName] = useState('Ramesh Sundaram');
-  const [age, setAge] = useState<number>(48);
+  const [patientName, setPatientName] = useState('');
+  const [age, setAge] = useState<number>(0);
   const [gender, setGender] = useState<'male' | 'female' | 'other'>('male');
-  const [location, setLocation] = useState('MG Road Metro Station Junction, Bangalore');
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>(['chest_pain', 'difficulty_breathing']);
+  const [location, setLocation] = useState('');
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [duration, setDuration] = useState<EmergencyAssessmentInput['duration']>('less_than_30min');
-  const [painScale, setPainScale] = useState<number>(9);
+  const [painScale, setPainScale] = useState<number>(0);
   const [consciousness, setConsciousness] = useState<EmergencyAssessmentInput['consciousness']>('alert');
-  const [existingConditions, setExistingConditions] = useState<string[]>(['Hypertension']);
-  const [notes, setNotes] = useState('Sudden onset crushing retrosternal chest pain with cold sweats.');
+  const [existingConditions, setExistingConditions] = useState<string[]>([]);
+  const [notes, setNotes] = useState('');
 
   // Vitals State (optional, defaults to zero)
   const [showVitals, setShowVitals] = useState(false);
@@ -67,7 +67,7 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
     // Presets include vitals, so show the vitals section
     setShowVitals(true);
     if (type === 'cardiac') {
-      setPatientName('Ramesh Sundaram');
+      setPatientName('');
       setAge(48);
       setGender('male');
       setSelectedSymptoms(['chest_pain', 'difficulty_breathing']);

@@ -30,7 +30,7 @@ interface DoctorManagementProps {
 
 export const DoctorManagement: React.FC<DoctorManagementProps> = ({
   doctors,
-  hospitalId = 'hosp-citycare',
+  hospitalId = '',
   onAddDoctor,
   onUpdateDoctor,
   onRemoveDoctor

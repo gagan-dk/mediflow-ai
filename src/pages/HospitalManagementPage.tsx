@@ -319,7 +319,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
           {/* Hospital List */}
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
             <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Hospital className="w-4 h-4 text-brand-600" />
+              <HospitalIcon className="w-4 h-4 text-brand-600" />
               Nearby Hospitals ({filteredHospitals.length})
             </h3>
             
@@ -336,7 +336,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <Hospital className="w-4 h-4 text-brand-600" />
+                          <HospitalIcon className="w-4 h-4 text-brand-600" />
                           <h4 className="text-sm font-bold text-slate-900 group-hover:text-brand-700 transition">
                             {hospital.name}
                           </h4>

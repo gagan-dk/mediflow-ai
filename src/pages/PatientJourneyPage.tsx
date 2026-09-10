@@ -18,6 +18,7 @@ import {
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
 import { useHospitalSync } from '../hooks/useHospitalSync';
+import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 interface PatientJourneyPageProps {
   navigate: (path: string) => void;
@@ -38,6 +39,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
 
   const hosp = selectedHospital || hospitals[0];
   const hospId = hosp?.id || hosp?.hospitalId;
+  const N = NOT_AVAILABLE_MESSAGE;
   
   const { hospital: syncedHospital, loading, lastUpdated, refetch } = useHospitalSync(hospId, { 
     autoRefresh: true, 
@@ -45,8 +47,8 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
   });
   
   const displayHospital = syncedHospital || hosp;
-  const patientName = currentAssessmentInput?.patientName || 'Ramesh Sundaram';
-  const tokenNumber = myQueueToken?.tokenNumber || '#A104';
+  const patientName = currentAssessmentInput?.patientName || 'Emergency Patient';
+  const tokenNumber = myQueueToken?.tokenNumber || N;
 
   const stages = [
     {
@@ -60,7 +62,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
     {
       id: 'pre_alert_sent',
       title: '🚨 Hospital Pre-Alert Transmitted',
-      desc: `Live telemetry sent to ${hosp.name}. Resuscitation bay & ICU Bed #ICU-06 reserved.`,
+      desc: `Live telemetry sent to ${hosp?.name || 'Hospital'}. Resource preparation initiated.`,
       time: '8 min ago',
       icon: HospitalIcon,
       done: journeyStage !== 'idle' && journeyStage !== 'assessed'
@@ -68,7 +70,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
     {
       id: 'ambulance_dispatched',
       title: 'Ambulance Dispatched & En Route',
-      desc: `Unit ${activeAmbulance?.vehicleNumber || 'KA-01-A17'} with certified Paramedic Ananya Sharma en route.`,
+      desc: `Unit ${activeAmbulance?.vehicleNumber || N} dispatched. Certified paramedic en route.`,
       time: '5 min ago',
       icon: Truck,
       done: ['ambulance_dispatched', 'patient_enroute', 'arrived_hospital', 'in_queue', 'under_doctor_assessment', 'treatment', 'completed'].includes(journeyStage)
@@ -76,7 +78,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
     {
       id: 'arrived_hospital',
       title: 'Hospital Arrival & Handover',
-      desc: `${hosp.name} triage team stationed at ambulance bay for rapid resuscitation handover.`,
+      desc: `${hosp?.name || 'Hospital'} triage team stationed at ambulance bay for rapid resuscitation handover.`,
       time: 'Est. in 6 mins',
       icon: MapPin,
       done: ['arrived_hospital', 'in_queue', 'under_doctor_assessment', 'treatment', 'completed'].includes(journeyStage)
@@ -92,7 +94,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
     {
       id: 'under_doctor_assessment',
       title: 'Attending Physician Evaluation',
-      desc: 'Dr. Priya Rao (ER Specialist) initiated emergency cardiac diagnostic protocol.',
+      desc: 'Attending physician initiated emergency diagnostic protocol.',
       time: 'Standby',
       icon: UserCheck,
       done: ['under_doctor_assessment', 'treatment', 'completed'].includes(journeyStage)
@@ -179,15 +181,15 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
           <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
             <span className="text-slate-400 text-[10px] font-medium block">Ambulance Vehicle</span>
             <div className="font-mono font-bold text-sm text-white">
-              {activeAmbulance?.vehicleNumber || 'KA-01-A17'}
+              {activeAmbulance?.vehicleNumber || N}
             </div>
-            <span className="text-[10px] text-emerald-400 font-semibold">ALS + High-flow Oxygen</span>
+            <span className="text-[10px] text-emerald-400 font-semibold">{activeAmbulance ? 'ALS + Oxygen Ready' : N}</span>
           </div>
 
           <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
             <span className="text-slate-400 text-[10px] font-medium block">Assigned Paramedic</span>
             <div className="font-bold text-sm text-white">
-              {activeAmbulance?.paramedicName || 'Ananya Sharma (EMT-P)'}
+              {activeAmbulance?.paramedicName || N}
             </div>
             <span className="text-[10px] text-slate-400">Telemetry feed synced</span>
           </div>
@@ -195,7 +197,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
           <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
             <div>
               <span className="text-slate-400 text-[10px] font-medium block">Direct Contact</span>
-              <span className="font-mono font-bold text-xs text-white">+91 98450 12345</span>
+              <span className="font-mono font-bold text-xs text-white">{activeAmbulance?.driverPhone || N}</span>
             </div>
             <a
               href="tel:112"

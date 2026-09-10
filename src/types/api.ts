@@ -94,25 +94,45 @@ export interface GetHospitalsQuery {
 }
 
 export interface GetHospitalsResponse {
-  hospitals: Hospital[];
+  items: Hospital[];
   total: number;
+  page: number;
+  size: number;
+  pages: number;
 }
 
 export interface GetHospitalResponse {
-  hospital: Hospital;
+  id: string;
+  name: string;
+  registration_number: string | null;
+  address: string;
+  city: string;
+  state: string;
+  postal_code: string | null;
+  latitude: number;
+  longitude: number;
+  phone: string | null;
+  email: string | null;
+  emergency_available: boolean;
+  status: 'ACTIVE' | 'INACTIVE' | 'UNDER_REVIEW';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UpdateHospitalRequest {
-  operationalData?: Partial<Hospital>;
-  beds?: Partial<Hospital['beds']>;
-  icu?: Partial<Hospital['icu']>;
-  emergencyRooms?: Partial<Hospital['emergencyRooms']>;
-  ambulances?: Partial<Hospital['ambulances']>;
-  queue?: Partial<Hospital['queue']>;
+  name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  phone?: string;
+  email?: string;
+  emergency_available?: boolean;
+  status?: 'ACTIVE' | 'INACTIVE' | 'UNDER_REVIEW';
 }
 
 export interface UpdateHospitalResponse {
-  hospital: Hospital;
+  hospital: GetHospitalResponse;
   message: string;
 }
 
@@ -128,46 +148,51 @@ export interface GetDoctorsQuery {
 }
 
 export interface GetDoctorsResponse {
-  doctors: Doctor[];
+  items: Doctor[];
   total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface DoctorRead {
+  id: string;
+  hospital_id: string;
+  name: string;
+  specialty: string;
+  registration_number: string | null;
+  phone: string | null;
+  email: string | null;
+  status: 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE' | 'OFF_DUTY';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateDoctorRequest {
-  hospitalId: string;
   name: string;
-  specialization: Doctor['specialization'];
-  department: string;
-  experience: number;
-  status: Doctor['status'];
-  dutyStatus: Doctor['dutyStatus'];
-  room?: string;
-  emergencyAvailable: boolean;
-  consultationHours?: string;
-  email?: string;
+  specialty: string;
+  registration_number?: string;
   phone?: string;
+  email?: string;
+  status?: 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE' | 'OFF_DUTY';
 }
 
 export interface CreateDoctorResponse {
-  doctor: Doctor;
+  doctor: DoctorRead;
   message: string;
 }
 
 export interface UpdateDoctorRequest {
   name?: string;
-  specialization?: Doctor['specialization'];
-  department?: string;
-  experience?: number;
-  status?: Doctor['status'];
-  dutyStatus?: Doctor['dutyStatus'];
-  room?: string;
-  emergencyAvailable?: boolean;
-  consultationHours?: string;
-  email?: string;
+  specialty?: string;
+  registration_number?: string;
   phone?: string;
+  email?: string;
+  status?: 'AVAILABLE' | 'BUSY' | 'UNAVAILABLE' | 'OFF_DUTY';
 }
 
 export interface UpdateDoctorResponse {
-  doctor: Doctor;
+  doctor: DoctorRead;
   message: string;
 }
 
@@ -186,20 +211,33 @@ export interface GetBedsQuery {
 }
 
 export interface GetBedsResponse {
-  beds: Bed[];
+  items: Bed[];
   total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface BedRead {
+  id: string;
+  hospital_id: string;
+  room_id: string | null;
+  bed_number: string;
+  bed_type: string;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface UpdateBedRequest {
-  status?: Bed['status'];
-  patientId?: string;
-  patientName?: string;
-  severity?: SeverityLevel;
-  assignedDoctor?: string;
+  bed_number?: string;
+  bed_type?: string;
+  room_id?: string;
+  status?: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
 }
 
 export interface UpdateBedResponse {
-  bed: Bed;
+  bed: BedRead;
   message: string;
 }
 
@@ -216,38 +254,45 @@ export interface GetRoomsQuery {
 }
 
 export interface GetRoomsResponse {
-  rooms: Room[];
+  items: Room[];
   total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface RoomRead {
+  id: string;
+  hospital_id: string;
+  room_number: string;
+  room_type: string;
+  floor: string | null;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CreateRoomRequest {
-  hospitalId: string;
-  roomNumber: string;
-  type: Room['type'];
-  floor: string;
-  department: string;
-  capacity: number;
-  status: Room['status'];
+  room_number: string;
+  room_type: string;
+  floor?: string;
+  status?: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
 }
 
 export interface CreateRoomResponse {
-  room: Room;
+  room: RoomRead;
   message: string;
 }
 
 export interface UpdateRoomRequest {
-  roomNumber?: string;
-  type?: Room['type'];
+  room_number?: string;
+  room_type?: string;
   floor?: string;
-  department?: string;
-  capacity?: number;
-  currentOccupancy?: number;
-  status?: Room['status'];
-  assignedPatient?: string;
+  status?: 'AVAILABLE' | 'OCCUPIED' | 'RESERVED' | 'MAINTENANCE';
 }
 
 export interface UpdateRoomResponse {
-  room: Room;
+  room: RoomRead;
   message: string;
 }
 
@@ -266,20 +311,51 @@ export interface GetAmbulancesQuery {
 }
 
 export interface GetAmbulancesResponse {
-  ambulances: Ambulance[];
+  items: Ambulance[];
   total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
+export interface AmbulanceRead {
+  id: string;
+  hospital_id: string;
+  vehicle_number: string;
+  type: 'BLS' | 'ALS' | 'ACL';
+  status: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'AT_HOSPITAL';
+  latitude: number | null;
+  longitude: number | null;
+  current_assignment: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAmbulanceRequest {
+  vehicle_number: string;
+  type?: 'BLS' | 'ALS' | 'ACL';
+  status?: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'AT_HOSPITAL';
+  latitude?: number;
+  longitude?: number;
+  current_assignment?: string;
+}
+
+export interface CreateAmbulanceResponse {
+  ambulance: AmbulanceRead;
+  message: string;
 }
 
 export interface UpdateAmbulanceRequest {
-  status?: Ambulance['status'];
-  currentLocation?: { lat: number; lng: number };
-  currentPatientId?: string;
-  assignedDriver?: string;
-  assignedParamedic?: string;
+  vehicle_number?: string;
+  type?: 'BLS' | 'ALS' | 'ACL';
+  status?: 'AVAILABLE' | 'DISPATCHED' | 'IN_TRANSIT' | 'AT_HOSPITAL';
+  latitude?: number;
+  longitude?: number;
+  current_assignment?: string;
 }
 
 export interface UpdateAmbulanceResponse {
-  ambulance: Ambulance;
+  ambulance: AmbulanceRead;
   message: string;
 }
 

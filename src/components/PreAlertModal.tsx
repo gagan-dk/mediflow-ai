@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { HospitalPreAlert } from '../types/preAlert';
 import { useApp } from '../context/AppContext';
+import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 interface PreAlertModalProps {
   preAlert: HospitalPreAlert | null;
@@ -85,7 +86,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
             </div>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-[11px] text-slate-500 font-medium">Assigned Ambulance</span>
-              <div className="font-bold text-brand-700 font-mono text-xs">{preAlert.ambulanceVehicleNumber || 'KA-01-A17'}</div>
+              <div className="font-bold text-brand-700 font-mono text-xs">{preAlert.ambulanceVehicleNumber || NOT_AVAILABLE_MESSAGE}</div>
               <div className="text-[10px] text-emerald-600 font-medium">ALS + Oxygen Ready</div>
             </div>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
@@ -180,7 +181,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
               >
                 <div className="flex items-center gap-2.5">
                   <BedDouble className="w-4 h-4 text-brand-600" />
-                  <span className="font-semibold">2. Reserve Emergency / ICU Bed (Bed #ICU-06 Locked)</span>
+                  <span className="font-semibold">2. Reserve Emergency / ICU Bed</span>
                 </div>
                 <span className="text-[10px] font-bold">{prep.icuReserved ? 'RESERVED ✓' : 'CLICK TO RESERVE'}</span>
               </button>
@@ -194,7 +195,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
               >
                 <div className="flex items-center gap-2.5">
                   <DoorOpen className="w-4 h-4 text-brand-600" />
-                  <span className="font-semibold">3. Assign Emergency Resuscitation Room (Resus Bay 1)</span>
+                  <span className="font-semibold">3. Assign Emergency Resuscitation Room</span>
                 </div>
                 <span className="text-[10px] font-bold">{prep.emergencyRoomAssigned ? 'ASSIGNED ✓' : 'ASSIGN ROOM'}</span>
               </button>
@@ -208,7 +209,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
               >
                 <div className="flex items-center gap-2.5">
                   <UserCheck className="w-4 h-4 text-brand-600" />
-                  <span className="font-semibold">4. Page Attending Physician (Dr. Priya Rao)</span>
+                  <span className="font-semibold">4. Page Attending Physician</span>
                 </div>
                 <span className="text-[10px] font-bold">{prep.doctorNotified ? 'NOTIFIED ✓' : 'PAGE DOCTOR'}</span>
               </button>

@@ -12,6 +12,7 @@ import type {
   UpdateDoctorRequest,
   UpdateDoctorResponse,
   DeleteDoctorResponse,
+  DoctorRead,
 } from '@/types/api';
 
 function buildQuery(params: Record<string, string | undefined>): string {
@@ -30,7 +31,7 @@ export async function getDoctors(
     department: query.department,
   });
   return apiClient.get<GetDoctorsResponse>(
-    `/hospitals/${query.hospitalId}/doctors${qs}`
+    `/api/hospitals/${query.hospitalId}/doctors${qs}`
   );
 }
 
@@ -38,9 +39,9 @@ export async function getDoctorById(
   hospitalId: string,
   doctorId: string,
   token?: string
-): Promise<CreateDoctorResponse> {
-  return apiClient.get<CreateDoctorResponse>(
-    `/hospitals/${hospitalId}/doctors/${doctorId}`
+): Promise<DoctorRead> {
+  return apiClient.get<DoctorRead>(
+    `/api/hospitals/${hospitalId}/doctors/${doctorId}`
   );
 }
 
@@ -49,29 +50,27 @@ export async function createDoctor(
   token: string
 ): Promise<CreateDoctorResponse> {
   return apiClient.post<CreateDoctorResponse>(
-    `/hospitals/${data.hospitalId}/doctors`,
+    `/api/staff/doctors`,
     data
   );
 }
 
 export async function updateDoctor(
-  hospitalId: string,
   doctorId: string,
   data: UpdateDoctorRequest,
   token: string
 ): Promise<UpdateDoctorResponse> {
   return apiClient.put<UpdateDoctorResponse>(
-    `/hospitals/${hospitalId}/doctors/${doctorId}`,
+    `/api/staff/doctors/${doctorId}`,
     data
   );
 }
 
 export async function deleteDoctor(
-  hospitalId: string,
   doctorId: string,
   token: string
 ): Promise<DeleteDoctorResponse> {
   return apiClient.delete<DeleteDoctorResponse>(
-    `/hospitals/${hospitalId}/doctors/${doctorId}`
+    `/api/staff/doctors/${doctorId}`
   );
 }

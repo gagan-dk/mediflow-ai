@@ -125,10 +125,14 @@ export function runBatchEmergencySimulation(hospitals: Hospital[], scenarioCount
   const avgEta = Math.round(totalAmbulanceEta / scenarioCount);
   const criticalSuccessRate = criticalCount > 0 ? Math.round((successfulCriticalRoutings / criticalCount) * 100) : 100;
 
+  const totalCapacity = hospitals.reduce((sum, h) => sum + (h.totalBeds ?? 0), 0);
+  const totalOccupied = hospitals.reduce((sum, h) => sum + ((h.availableBeds ?? 0) ? (h.totalBeds ?? 0) - (h.availableBeds ?? 0) : 0), 0);
+  const simulatedHospitalUtilizationPercent = totalCapacity > 0 ? Math.round((totalOccupied / totalCapacity) * 100) : 0;
+
   const metrics: SimulationResultMetrics = {
     totalScenariosRun: scenarioCount,
     averageSimulatedWaitTimeMinutes: avgWait,
-    simulatedHospitalUtilizationPercent: 68,
+    simulatedHospitalUtilizationPercent,
     simulatedAmbulanceEtaMinutes: avgEta,
     criticalCasesSuccessfullyRoutedPercent: criticalSuccessRate,
     reroutesTriggeredCount: rerouteCount,
@@ -139,7 +143,7 @@ export function runBatchEmergencySimulation(hospitals: Hospital[], scenarioCount
       low: lowCount
     },
     hospitalLoadDistribution,
-    facilityMatchingAccuracyPercent: 99.2,
+    facilityMatchingAccuracyPercent: criticalSuccessRate,
     timestamp: new Date().toISOString()
   };
 

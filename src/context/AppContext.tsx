@@ -7,12 +7,7 @@ import { AssessmentResult, EmergencyAssessmentInput } from '../types/prioritizat
 import { RankedHospital, rankHospitalsForPatient } from '../services/rankingEngine';
 import { evaluateEmergencyPriority } from '../services/prioritizationEngine';
 import {
-  INITIAL_HOSPITALS,
-  INITIAL_AMBULANCES,
-  INITIAL_BEDS,
-  INITIAL_QUEUE_PATIENTS,
-  INITIAL_PRE_ALERTS,
-  hospitalToBeds
+  NOT_AVAILABLE_MESSAGE
 } from '../services/mockData';
 import {
   UserGeoLocation,
@@ -242,14 +237,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     if (role === 'patient') {
-      profile.age = 48;
-      profile.gender = 'male';
-      profile.bloodGroup = 'O+';
-      profile.location = 'Bangalore, India';
+      profile.age = backendUser.age;
+      profile.gender = backendUser.gender;
+      profile.bloodGroup = backendUser.blood_group;
+      profile.location = backendUser.location;
     } else if (role === 'hospital_staff') {
-      profile.staffId = 'ER-7701';
-      profile.department = 'Emergency Department';
-      profile.experienceYears = 12;
+      profile.staffId = backendUser.staff_id;
+      profile.department = backendUser.department;
+      profile.experienceYears = backendUser.experience_years;
+      profile.hospitalId = backendUser.hospital_id;
+      profile.hospitalName = backendUser.hospital_name;
     } else if (role === 'admin') {
       profile.adminLevel = 'System Administrator';
     }
@@ -368,20 +365,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   }, []);
   
-  const [ambulances, setAmbulances] = useState<Ambulance[]>(INITIAL_AMBULANCES);
-  const [beds, setBedsState] = useState<Bed[]>(() => {
-    const hosp = hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
-    return hospitalToBeds(hosp);
-  });
-  const [queuePatients, setQueuePatients] = useState<QueuePatient[]>(INITIAL_QUEUE_PATIENTS);
-  const [preAlerts, setPreAlerts] = useState<HospitalPreAlert[]>(INITIAL_PRE_ALERTS);
+  const [ambulances, setAmbulances] = useState<Ambulance[]>([]);
+  const [beds, setBedsState] = useState<Bed[]>([]);
+  const [queuePatients, setQueuePatients] = useState<QueuePatient[]>([]);
+  const [preAlerts, setPreAlerts] = useState<HospitalPreAlert[]>([]);
   
   // Active session state
   const [currentAssessmentInput, setCurrentAssessmentInput] = useState<EmergencyAssessmentInput | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
-  const [activePreAlert, setActivePreAlert] = useState<HospitalPreAlert | null>(INITIAL_PRE_ALERTS[0] || null);
-  const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(INITIAL_AMBULANCES[0] || null);
+  const [activePreAlert, setActivePreAlert] = useState<HospitalPreAlert | null>(null);
+  const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(null);
   const [myQueueToken, setMyQueueToken] = useState<QueuePatient | null>(null);
   const [journeyStage, setJourneyStage] = useState<JourneyStage>('idle');
 
@@ -413,9 +407,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setRoomsState(hosp.roomsList || []);
       if (hosp.bedList && hosp.bedList.length > 0) {
         setBedsState(hosp.bedList);
-      } else {
-        const initial = hospitalToBeds(hosp);
-        setBedsState(initial);
       }
     }
   }, [selectedHospital, hospitals, currentUser.hospitalId]);
@@ -624,42 +615,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setUserRole = (role: UserRole) => {
     let name = 'Demo User';
-    let hospitalName = undefined;
-    let hospitalId = undefined;
-
-    if (role === 'hospital_staff') {
-      name = 'Dr. Priya Rao (ER Attending)';
-      hospitalName = 'CityCare Medical Center';
-      hospitalId = 'hosp-citycare';
-    } else if (role === 'admin') {
-      name = 'Director S. Menon (Regional Health Board)';
-    } else {
-      name = 'Rohan Verma (Patient)';
-    }
 
     const profile: UserProfile = {
       id: `usr-${role}`,
       name,
       role,
-      hospitalId,
-      hospitalName,
       badgeNumber: `MED-${Math.floor(1000 + Math.random() * 9000)}`,
       email: `${role}@mediflow.ai`,
       accountStatus: 'active',
       createdAt: 'Jan 2024',
       lastLogin: new Date().toISOString(),
     };
-
-    if (role === 'patient') {
-      profile.age = 48;
-      profile.gender = 'male';
-      profile.phone = '+91 98765 43210';
-      profile.bloodGroup = 'O+';
-    } else if (role === 'hospital_staff') {
-      profile.phone = '+91 80 4120 5501';
-      profile.department = 'Emergency Department';
-      profile.experienceYears = 12;
-    }
 
     setCurrentUser(profile);
 
@@ -904,28 +870,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: preAlertId,
       patientId: assessmentResult?.patientId || `P-${Math.floor(1000 + Math.random() * 9000)}`,
       patientName,
-      age: currentAssessmentInput?.age || 48,
-      gender: currentAssessmentInput?.gender || 'male',
+      age: currentAssessmentInput?.age || 0,
+      gender: currentAssessmentInput?.gender || 'other',
       severity,
-      symptoms: currentAssessmentInput?.selectedSymptoms || ['Severe Chest Pain', 'Difficulty Breathing'],
+      symptoms: currentAssessmentInput?.selectedSymptoms || [],
       vitalsSummary: currentAssessmentInput?.vitals 
-        ? `HR: ${currentAssessmentInput.vitals.heartRateBpm || 112} | SpO2: ${currentAssessmentInput.vitals.oxygenSaturationSpO2 || 91}% | BP: 155/95` 
-        : 'SpO2: 91% | HR: 115 bpm (Tachycardia) | BP: 160/95 mmHg',
-      etaMinutes: hospital.travelTimeMinutes || 8,
+        ? `HR: ${currentAssessmentInput.vitals.heartRateBpm || 'N/A'} | SpO2: ${currentAssessmentInput.vitals.oxygenSaturationSpO2 || 'N/A'}% | BP: ${currentAssessmentInput.vitals.bloodPressureSystolic || 'N/A'}/${currentAssessmentInput.vitals.bloodPressureDiastolic || 'N/A'}` 
+        : NOT_AVAILABLE_MESSAGE,
+      etaMinutes: hospital.travelTimeMinutes || 0,
       requiredFacilities: assessmentResult?.requiredFacilities || {
         emergencyDepartment: true,
-        icu: true,
-        oxygenSupport: true,
-        ventilator: true,
+        icu: false,
+        oxygenSupport: false,
+        ventilator: false,
         traumaCare: false,
-        cardiacCare: true,
+        cardiacCare: false,
         strokeUnit: false,
         orthopedicSurgeon: false,
         pediatricEmergency: false
       },
       ambulanceId: matchedAmbulance?.id,
-      ambulanceVehicleNumber: matchedAmbulance?.vehicleNumber || 'KA-01-A17',
-      originLocation: userLiveLocation.address || currentAssessmentInput?.location || 'Central Metro Hub',
+      ambulanceVehicleNumber: matchedAmbulance?.vehicleNumber || undefined,
+      originLocation: userLiveLocation.address || currentAssessmentInput?.location || NOT_AVAILABLE_MESSAGE,
       destinationHospitalId: hospital.id,
       destinationHospitalName: hospital.name,
       status: 'Alert Sent',
@@ -1058,15 +1024,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: `q-${Date.now()}`,
       tokenNumber,
       patientName,
-      age: currentAssessmentInput?.age || 48,
-      gender: currentAssessmentInput?.gender || 'male',
+      age: currentAssessmentInput?.age || 0,
+      gender: currentAssessmentInput?.gender || 'other',
       severity,
-      symptoms: currentAssessmentInput?.selectedSymptoms || ['Severe Chest Pain'],
+      symptoms: currentAssessmentInput?.selectedSymptoms || [],
       arrivalTime: new Date().toISOString(),
       estimatedWaitMinutes: waitTime,
       status: severity === 'CRITICAL' ? 'Under Assessment' : 'Waiting',
-      assignedDoctor: severity === 'CRITICAL' ? 'Dr. Priya Rao' : undefined,
-      assignedRoom: severity === 'CRITICAL' ? 'Resus Bay 1' : undefined,
+      assignedDoctor: undefined,
+      assignedRoom: undefined,
       hospitalId,
       queuePosition
     };
@@ -1118,7 +1084,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     // Get current bed list without re-randomizing or resetting other beds
-    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : (beds.length > 0 ? beds : hospitalToBeds(hosp));
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
     
     // Modify ONLY the selected bed, preserving all other rooms/beds
     const newBeds = currentBeds.map(b => {
@@ -1174,7 +1140,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleBedStatus = (bedId: string) => {
     const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
     if (!hosp) return;
-    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : (beds.length > 0 ? beds : hospitalToBeds(hosp));
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
     const targetBed = currentBeds.find(b => b.id === bedId);
     if (!targetBed) return;
 
@@ -1249,12 +1215,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const resetHospitalCapacities = () => {
-    setHospitals(INITIAL_HOSPITALS);
-    setBedsState(INITIAL_BEDS);
-    setAmbulances(INITIAL_AMBULANCES);
     addNotification({
       title: 'Hospital Capacities Reset',
-      message: 'All regional hospital beds and queue metrics restored to baseline.',
+      message: 'Operational data reset. Re-fetch from backend to restore current state.',
       type: 'system'
     });
     soundFX.playChime();
@@ -1262,10 +1225,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // 1-Click SIH Judge Demo Mode (2-minute complete golden flow)
   const triggerSIHDemoMode = () => {
-    // 1. Reset state
-    setHospitals(INITIAL_HOSPITALS);
-    
-    // 2. Set sample patient input
+    // 1. Set sample patient input
     const demoInput: EmergencyAssessmentInput = {
       patientName: 'Ramesh Sundaram',
       age: 48,
@@ -1288,34 +1248,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setCurrentAssessmentInput(demoInput);
 
-    // 3. Evaluate Triage
+    // 2. Evaluate Triage
     const assessment = evaluateEmergencyPriority(demoInput);
     setAssessmentResult(assessment);
 
-    // 4. Select top ranked hospital
-    const cityCare = hospitals[0] || INITIAL_HOSPITALS[0];
-    setSelectedHospital(cityCare);
+    // 3. Select top ranked hospital from available state
+    const cityCare = hospitals[0];
+    if (cityCare) {
+      setSelectedHospital(cityCare);
 
-    // 5. Send Pre-Alert
-    const preAlert = sendHospitalPreAlert(cityCare, 'Patient with acute coronary syndrome & hypoxia SpO2 91%. Resuscitation bay and cath lab standby requested.');
+      // 4. Send Pre-Alert
+      const preAlert = sendHospitalPreAlert(cityCare, 'Patient with acute coronary syndrome & hypoxia SpO2 91%. Resuscitation bay and cath lab standby requested.');
 
-    // 6. Generate Priority Queue Token
-    const token = generatePatientToken('Ramesh Sundaram', 'CRITICAL', cityCare.id);
-    setMyQueueToken(token);
+      // 5. Generate Priority Queue Token
+      const token = generatePatientToken('Ramesh Sundaram', 'CRITICAL', cityCare.id);
+      setMyQueueToken(token);
 
-    // 7. Update Journey stage
-    setJourneyStage('ambulance_dispatched');
+      // 6. Update Journey stage
+      setJourneyStage('ambulance_dispatched');
 
-    // 8. Auto-reserve ICU Bed
-    updatePreAlertPreparation(preAlert.id, 'icuReserved', true);
-    updatePreAlertPreparation(preAlert.id, 'emergencyRoomAssigned', true);
-    updatePreAlertPreparation(preAlert.id, 'assignedRoomNumber', 'Resus Bay 1 (Cath Lab Standby)');
+      // 7. Auto-reserve ICU Bed
+      updatePreAlertPreparation(preAlert.id, 'icuReserved', true);
+      updatePreAlertPreparation(preAlert.id, 'emergencyRoomAssigned', true);
+      updatePreAlertPreparation(preAlert.id, 'assignedRoomNumber', NOT_AVAILABLE_MESSAGE);
 
-    addNotification({
-      title: '⚡ SIH Demo Mode Activated',
-      message: `Golden emergency scenario loaded at ${userLiveLocation.address}: 48yo chest pain → Critical Prioritization → ${cityCare.name} Recommended → Pre-Alert Transmitted → Ambulance Dispatched → Token #A104 Assigned.`,
-      type: 'system'
-    });
+      addNotification({
+        title: 'SIH Demo Mode Activated',
+        message: `Golden emergency scenario loaded at ${userLiveLocation.address}: 48yo chest pain → Critical Prioritization → ${cityCare.name} Recommended → Pre-Alert Transmitted → Ambulance Dispatched.`,
+        type: 'system'
+      });
+    } else {
+      addNotification({
+        title: 'SIH Demo Mode — No Hospitals Available',
+        message: 'No hospitals loaded from backend. Please search for hospitals first.',
+        type: 'emergency'
+      });
+    }
 
     soundFX.playEmergencyAlert();
   };

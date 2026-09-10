@@ -24,11 +24,7 @@ export async function getQueue(
   query: GetQueueQuery,
   token?: string
 ): Promise<GetQueueResponse> {
-  const qs = buildQuery({
-    hospitalId: query.hospitalId,
-    status: query.status,
-  });
-  return apiClient.get<GetQueueResponse>(`/queue${qs}`);
+  return apiClient.get<GetQueueResponse>(`/queue/${query.hospitalId}`);
 }
 
 /**

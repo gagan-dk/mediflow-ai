@@ -47,6 +47,7 @@ import { getAllQuotaStatuses } from '../services/map/apiQuotaService';
 import type { QueueTokenView, BackendQueueStatus } from '../types/api';
 import type { QueuePatient } from '../types/queue';
 import type { SeverityLevel } from '../types/hospital';
+import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 const mapBackendSeverity = (s: string | null): SeverityLevel => {
   if (s === 'CRITICAL' || s === 'HIGH' || s === 'MODERATE' || s === 'LOW') return s;
@@ -150,38 +151,62 @@ export const HospitalCommandCenterPage: React.FC = () => {
   // Show hospital selection reminder for hospital staff if no hospital is selected
   const showHospitalSelectionReminder = currentUser.role === 'hospital_staff' && !selectedHospital;
 
-  // Aggregated Stats
-  const totalBeds = primaryHospital.totalBeds;
-  const availableBeds = primaryHospital.availableBeds;
-  const totalICUBeds = primaryHospital.totalICUBeds;
-  const availableICUBeds = primaryHospital.availableICUBeds;
-  const avgWait = primaryHospital.estimatedWaitTimeMinutes;
-  const activeEmergencyCases = displayQueue.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
+  const opDataAvailable = primaryHospital?.operationalDataAvailable === true;
 
-  // Chart Mock Telemetry Data
+  // Aggregated Stats
+  const totalBeds = primaryHospital?.totalBeds ?? 0;
+  const availableBeds = primaryHospital?.availableBeds ?? 0;
+  const totalICUBeds = primaryHospital?.totalICUBeds ?? 0;
+  const availableICUBeds = primaryHospital?.availableICUBeds ?? 0;
+  const avgWait = primaryHospital?.estimatedWaitTimeMinutes ?? 0;
+  const activeEmergencyCases = displayQueue.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
+  const occupancyPercent = totalBeds > 0 ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100) : 0;
+  const reservedBeds = primaryHospital?.beds?.reserved ?? 0;
+  const ambulancesEnRoute = ambulances.filter(a => a.status === 'En Route' || a.status === 'Dispatched').length;
+  const criticalCount = displayQueue.filter(p => p.severity === 'CRITICAL').length;
+
+  // Derive chart data from actual queue
   const hourlyArrivalData = [
-    { time: '08:00', critical: 2, high: 4, moderate: 7, low: 10 },
-    { time: '10:00', critical: 3, high: 6, moderate: 11, low: 14 },
-    { time: '12:00', critical: 5, high: 8, moderate: 14, low: 18 },
-    { time: '14:00', critical: 4, high: 7, moderate: 12, low: 16 },
-    { time: '16:00', critical: 3, high: 9, moderate: 15, low: 20 },
-    { time: '18:00', critical: 6, high: 11, moderate: 16, low: 22 },
-    { time: '20:00', critical: 4, high: 8, moderate: 13, low: 17 }
+    { time: '08:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '10:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '12:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '14:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '16:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '18:00', critical: 0, high: 0, moderate: 0, low: 0 },
+    { time: '20:00', critical: 0, high: 0, moderate: 0, low: 0 },
   ];
+
+  // Populate current time slot with actual queue data
+  const now = new Date();
+  const currentHour = `${now.getHours().toString().padStart(2, '0')}:00`;
+  const currentSlot = hourlyArrivalData.find(d => d.time === currentHour) || hourlyArrivalData[hourlyArrivalData.length - 1];
+  currentSlot.critical = displayQueue.filter(p => p.severity === 'CRITICAL').length;
+  currentSlot.high = displayQueue.filter(p => p.severity === 'HIGH').length;
+  currentSlot.moderate = displayQueue.filter(p => p.severity === 'MODERATE').length;
+  currentSlot.low = displayQueue.filter(p => p.severity === 'LOW').length;
 
   const severityPieData = [
-    { name: 'Critical', value: 18, color: '#ef4444' },
-    { name: 'High', value: 34, color: '#f97316' },
-    { name: 'Moderate', value: 48, color: '#eab308' },
-    { name: 'Low', value: 28, color: '#22c55e' }
+    { name: 'Critical', value: displayQueue.filter(p => p.severity === 'CRITICAL').length || 0, color: '#ef4444' },
+    { name: 'High', value: displayQueue.filter(p => p.severity === 'HIGH').length || 0, color: '#f97316' },
+    { name: 'Moderate', value: displayQueue.filter(p => p.severity === 'MODERATE').length || 0, color: '#eab308' },
+    { name: 'Low', value: displayQueue.filter(p => p.severity === 'LOW').length || 0, color: '#22c55e' }
   ];
 
-  const bedOccupancyData = [
-    { ward: 'Emergency', occupied: 26, available: 9 },
-    { ward: 'ICU', occupied: 19, available: 5 },
-    { ward: 'Trauma', occupied: 14, available: 4 },
-    { ward: 'Cardiac', occupied: 20, available: 6 }
-  ];
+  const totalQueuePatients = displayQueue.length;
+
+  // Derive bed occupancy from actual bed list
+  const bedOccupancyData = (() => {
+    if (beds.length === 0) return [];
+    const wards = ['Emergency', 'ICU', 'General', 'Trauma', 'Cardiac'];
+    return wards.map(ward => {
+      const wardBeds = beds.filter(b => b.wardType === ward);
+      const occupied = wardBeds.filter(b => b.status === 'Occupied' || b.status === 'Reserved').length;
+      const available = wardBeds.filter(b => b.status === 'Available').length;
+      return { ward, occupied, available };
+    }).filter(w => w.occupied + w.available > 0);
+  })();
+
+  const N = NOT_AVAILABLE_MESSAGE;
 
   return (
     <div className="space-y-8 pb-16">
@@ -193,7 +218,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <span>Emergency Operations Center</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Hospital Command Center — {primaryHospital.name}
+            Hospital Command Center — {primaryHospital?.name ?? N}
           </h1>
           <p className="text-xs text-slate-500">
             Real-time ER triage management, pre-arrival alert coordination, ICU allocation, and regional load balancing.
@@ -257,8 +282,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
             Total Patients
             <Users className="w-3.5 h-3.5 text-brand-600" />
           </span>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono">128</div>
-          <span className="text-[10px] text-emerald-600 font-semibold font-mono">+12 last hour</span>
+          <div className="text-2xl font-extrabold text-slate-900 font-mono">{opDataAvailable ? totalQueuePatients : N}</div>
+          <span className="text-[10px] text-slate-500 font-semibold font-mono">{opDataAvailable ? `${totalQueuePatients} registered` : '—'}</span>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
@@ -267,7 +292,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
           </span>
           <div className="text-2xl font-extrabold text-red-600 font-mono">{activeEmergencyCases}</div>
-          <span className="text-[10px] text-red-600 font-semibold font-mono">3 Critical Active</span>
+          <span className="text-[10px] text-red-600 font-semibold font-mono">{opDataAvailable ? `${criticalCount} Critical Active` : '—'}</span>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
@@ -275,8 +300,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
             Available Beds
             <BedDouble className="w-3.5 h-3.5 text-brand-600" />
           </span>
-          <div className="text-2xl font-extrabold text-brand-700 font-mono">{availableBeds} <span className="text-xs text-slate-400 font-normal">/ {totalBeds}</span></div>
-          <span className="text-[10px] text-slate-500">81% Occupancy</span>
+          <div className="text-2xl font-extrabold text-brand-700 font-mono">{opDataAvailable ? `${availableBeds} / ${totalBeds}` : N}</div>
+          <span className="text-[10px] text-slate-500">{opDataAvailable ? `${occupancyPercent}% Occupancy` : '—'}</span>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
@@ -284,8 +309,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
             ICU Beds Open
             <BedDouble className="w-3.5 h-3.5 text-purple-600" />
           </span>
-          <div className="text-2xl font-extrabold text-purple-700 font-mono">{availableICUBeds} <span className="text-xs text-slate-400 font-normal">/ {totalICUBeds}</span></div>
-          <span className="text-[10px] text-emerald-600 font-semibold">1 Reserved</span>
+          <div className="text-2xl font-extrabold text-purple-700 font-mono">{opDataAvailable ? `${availableICUBeds} / ${totalICUBeds}` : N}</div>
+          <span className="text-[10px] text-emerald-600 font-semibold">{opDataAvailable ? `${reservedBeds} Reserved` : '—'}</span>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
@@ -293,8 +318,8 @@ export const HospitalCommandCenterPage: React.FC = () => {
             Average Wait
             <Clock className="w-3.5 h-3.5 text-amber-600" />
           </span>
-          <div className="text-2xl font-extrabold text-amber-600 font-mono">{avgWait}m</div>
-          <span className="text-[10px] text-emerald-600 font-semibold">-5m vs target</span>
+          <div className="text-2xl font-extrabold text-amber-600 font-mono">{opDataAvailable ? `${avgWait}m` : N}</div>
+          <span className="text-[10px] text-slate-500 font-semibold">—</span>
         </div>
 
         <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
@@ -303,7 +328,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
             <Truck className="w-3.5 h-3.5 text-emerald-600" />
           </span>
           <div className="text-2xl font-extrabold text-emerald-700 font-mono">{ambulances.filter(a => a.status === 'Available').length}</div>
-          <span className="text-[10px] text-slate-500 font-mono">2 En Route</span>
+          <span className="text-[10px] text-slate-500 font-mono">{ambulancesEnRoute} En Route</span>
         </div>
       </div>
 
@@ -499,7 +524,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
                         <span>{pa.etaMinutes}m ETA</span>
                       </div>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        Ambulance: {pa.ambulanceVehicleNumber || 'KA-01-A17'}
+                        Ambulance: {pa.ambulanceVehicleNumber || N}
                       </span>
                     </div>
                   </div>
@@ -700,7 +725,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
                           ) : (
                             <>
                               <button
-                                onClick={() => updateQueuePatientStatus(patient.id, 'Treatment', 'Dr. Priya Rao', 'Resus Bay 1')}
+                                onClick={() => updateQueuePatientStatus(patient.id, 'Treatment')}
                                 className="px-2 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded font-semibold transition"
                                 title="Move to Treatment"
                               >
@@ -846,7 +871,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
                 <PieChartIcon className="w-4 h-4 text-purple-600" />
                 Emergency Triage Severity Distribution
               </h4>
-              <span className="text-[11px] text-slate-400 font-mono">128 Patients Total</span>
+              <span className="text-[11px] text-slate-400 font-mono">{totalQueuePatients} Patients Total</span>
             </div>
             <div className="h-64 w-full flex items-center justify-center">
               <ResponsiveContainer width="100%" height="100%">

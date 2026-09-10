@@ -39,7 +39,7 @@ export const PreAlertBanner: React.FC = () => {
                   <Clock className="w-3.5 h-3.5" /> ETA: <strong>{activePreAlert.etaMinutes} mins</strong>
                 </span>
                 <span className="hidden md:inline">
-                  Ambulance: <strong>{activePreAlert.ambulanceVehicleNumber || 'KA-01-A17'}</strong>
+                  Ambulance: <strong>{activePreAlert.ambulanceVehicleNumber || 'Not assigned'}</strong>
                 </span>
                 <span className="hidden lg:inline">
                   Status: <strong className="underline">{activePreAlert.status}</strong>

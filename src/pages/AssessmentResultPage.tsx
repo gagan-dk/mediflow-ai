@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
+import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 interface AssessmentResultPageProps {
   navigate: (path: string) => void;
@@ -53,7 +54,7 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
   const currentRankedItem = rankedHospitals.find(r => r.hospital.id === recommendedHospital?.id) || topRanked;
 
   const severity = assessmentResult?.severity || 'CRITICAL';
-  const localRiskScore = assessmentResult?.riskScore || 94;
+  const localRiskScore = assessmentResult?.riskScore || 0;
   const backendPriorityScore = currentEmergencyCase?.priority_score;
   const displayScore = backendPriorityScore ?? localRiskScore;
   const scoreLabel = backendPriorityScore != null ? 'AI-Assisted Prioritization Score' : 'Priority/Risk Score';
@@ -185,20 +186,20 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
           <div className="space-y-1.5 text-xs">
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Patient:</span>
-              <span className="font-bold text-slate-900">{currentAssessmentInput?.patientName || 'Ramesh Sundaram'}</span>
+              <span className="font-bold text-slate-900">{currentAssessmentInput?.patientName || 'Emergency Patient'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Age & Gender:</span>
-              <span className="font-medium text-slate-800">{currentAssessmentInput?.age || 48} yrs • {currentAssessmentInput?.gender || 'male'}</span>
+              <span className="font-medium text-slate-800">{currentAssessmentInput?.age ? `${currentAssessmentInput.age} yrs` : '—'} • {currentAssessmentInput?.gender || '—'}</span>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-100">
               <span className="text-slate-500">Pain Scale:</span>
-              <span className="font-bold text-red-600 font-mono">{currentAssessmentInput?.painScale || 9}/10 (Severe)</span>
+              <span className="font-bold text-red-600 font-mono">{currentAssessmentInput?.painScale ? `${currentAssessmentInput.painScale}/10` : NOT_AVAILABLE_MESSAGE}</span>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-500">Location:</span>
               <span className="font-medium text-slate-800 truncate max-w-[140px]" title={currentAssessmentInput?.location}>
-                {currentAssessmentInput?.location || 'Bangalore Central'}
+                {currentAssessmentInput?.location || 'Location not set'}
               </span>
             </div>
           </div>
@@ -288,7 +289,7 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
                   {recommendedHospital.estimatedWaitTimeMinutes} mins
                 </div>
                 <div className="text-[11px] text-slate-500 font-medium">
-                  Queue: 4 ahead
+                  Queue: {recommendedHospital?.queue?.totalPatients ?? NOT_AVAILABLE_MESSAGE}
                 </div>
               </div>
 

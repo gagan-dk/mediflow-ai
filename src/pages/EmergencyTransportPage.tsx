@@ -24,8 +24,8 @@ interface EmergencyTransportPageProps {
 export const EmergencyTransportPage: React.FC<EmergencyTransportPageProps> = ({ navigate }) => {
   const { ambulances, hospitals, dispatchAmbulanceForPatient } = useApp();
   const [selectedAmbulanceId, setSelectedAmbulanceId] = useState<string>(ambulances[0]?.id || '');
-  const [targetPatientName, setTargetPatientName] = useState('Ramesh Sundaram (Critical Cardiac)');
-  const [targetHospitalId, setTargetHospitalId] = useState('hosp-citycare');
+  const [targetPatientName, setTargetPatientName] = useState('');
+  const [targetHospitalId, setTargetHospitalId] = useState(hospitals[0]?.id || '');
 
   const selectedAmbulance = ambulances.find(a => a.id === selectedAmbulanceId) || ambulances[0];
 
@@ -69,7 +69,7 @@ export const EmergencyTransportPage: React.FC<EmergencyTransportPageProps> = ({ 
         </div>
 
         <span className="px-3 py-1 bg-white border border-sky-300 text-sky-800 rounded-lg font-bold font-mono">
-          5 / 5 Fleet Active
+          {ambulances.length > 0 ? `${ambulances.filter(a => a.status === 'Available').length} / ${ambulances.length} Fleet Active` : 'Operational data not available'}
         </span>
       </div>
 

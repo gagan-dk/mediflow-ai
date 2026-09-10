@@ -116,7 +116,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
             <div className="flex items-center gap-2">
               {/* Dynamic Capacity Crash Button */}
               <button
-                onClick={() => simulateHospitalBecomingFull('hosp-citycare')}
+                onClick={() => simulateHospitalBecomingFull()}
                 className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-xl text-xs font-semibold transition shrink-0"
                 title="Simulate primary hospital reaching capacity to demonstrate automated dynamic rerouting"
               >
@@ -274,7 +274,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
             
             <div className="pt-2 border-t border-slate-100">
               <button
-                onClick={() => simulateHospitalBecomingFull('hosp-citycare')}
+                onClick={() => simulateHospitalBecomingFull()}
                 className="w-full flex items-center justify-center gap-2 p-2 bg-red-50 text-red-700 text-xs font-bold rounded-xl border border-red-200"
               >
                 <AlertOctagon className="w-4 h-4" />

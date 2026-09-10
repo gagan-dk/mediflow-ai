@@ -412,7 +412,7 @@ function mapRoomStatus(status: string): Room['status'] {
   const statusMap: Record<string, Room['status']> = {
     'AVAILABLE': 'Available',
     'OCCUPIED': 'Occupied',
-    'UNDER_MAINTENANCE': 'Under Maintenance',
+    'UNDER_MAINTENANCE': 'Maintenance',
     'CLEANING': 'Cleaning',
   };
   return statusMap[status] || 'Available';

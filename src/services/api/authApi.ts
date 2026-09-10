@@ -22,6 +22,15 @@ export interface AuthUser {
   role: 'PATIENT' | 'HOSPITAL_STAFF' | 'ADMIN';
   created_at: string;
   updated_at: string;
+  age?: number;
+  gender?: string;
+  blood_group?: string;
+  location?: string;
+  staff_id?: string;
+  department?: string;
+  experience_years?: number;
+  hospital_id?: string;
+  hospital_name?: string;
 }
 
 export interface LoginPayload {

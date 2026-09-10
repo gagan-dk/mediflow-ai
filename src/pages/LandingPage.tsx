@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
+import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 interface LandingPageProps {
   navigate: (path: string) => void;
@@ -27,6 +28,14 @@ interface LandingPageProps {
 
 export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
   const { hospitals } = useApp();
+
+  const monitoredHospitals = hospitals.length;
+  const totalICUBeds = hospitals.reduce((sum, h) => sum + (h.totalICUBeds ?? 0), 0);
+  const availableICUBeds = hospitals.reduce((sum, h) => sum + (h.availableICUBeds ?? 0), 0);
+  const avgERWait = hospitals.length > 0
+    ? (hospitals.reduce((sum, h) => sum + (h.estimatedWaitTimeMinutes ?? 0), 0) / hospitals.length).toFixed(1)
+    : null;
+  const hasOperationalData = hospitals.some(h => h.operationalDataAvailable === true);
 
   return (
     <div className="space-y-16 pb-12">
@@ -118,8 +127,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                     <span>Monitored Hospitals</span>
                     <Hospital className="w-4 h-4 text-brand-600" />
                   </div>
-                  <div className="text-2xl font-extrabold text-slate-900 font-mono">6 Centers</div>
-                  <div className="text-[11px] text-emerald-600 font-semibold">100% Online & Synced</div>
+                  <div className="text-2xl font-extrabold text-slate-900 font-mono">{monitoredHospitals > 0 ? `${monitoredHospitals} Centers` : NOT_AVAILABLE_MESSAGE}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">{monitoredHospitals > 0 ? 'Online & Synced' : '—'}</div>
                 </div>
 
                 <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
@@ -127,8 +136,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                     <span>Available ICU Beds</span>
                     <BedDouble className="w-4 h-4 text-purple-600" />
                   </div>
-                  <div className="text-2xl font-extrabold text-purple-700 font-mono">18 / 110</div>
-                  <div className="text-[11px] text-slate-500 font-medium">Real-time telemetry</div>
+                  <div className="text-2xl font-extrabold text-purple-700 font-mono">{hasOperationalData ? `${availableICUBeds} / ${totalICUBeds}` : NOT_AVAILABLE_MESSAGE}</div>
+                  <div className="text-[11px] text-slate-500 font-medium">{hasOperationalData ? 'Real-time telemetry' : '—'}</div>
                 </div>
 
                 <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
@@ -136,8 +145,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                     <span>Average ER Wait</span>
                     <Clock className="w-4 h-4 text-amber-600" />
                   </div>
-                  <div className="text-2xl font-extrabold text-amber-600 font-mono">14.2 min</div>
-                  <div className="text-[11px] text-emerald-600 font-semibold">42% below regional avg</div>
+                  <div className="text-2xl font-extrabold text-amber-600 font-mono">{hasOperationalData && avgERWait ? `${avgERWait} min` : NOT_AVAILABLE_MESSAGE}</div>
+                  <div className="text-[11px] text-slate-500 font-semibold">{hasOperationalData ? 'Across all hospitals' : '—'}</div>
                 </div>
 
                 <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
@@ -145,8 +154,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                     <span>Active Ambulances</span>
                     <Truck className="w-4 h-4 text-emerald-600" />
                   </div>
-                  <div className="text-2xl font-extrabold text-emerald-700 font-mono">5 Units</div>
-                  <div className="text-[11px] text-emerald-600 font-semibold">ALS & Oxygen Ready</div>
+                  <div className="text-2xl font-extrabold text-emerald-700 font-mono">{NOT_AVAILABLE_MESSAGE}</div>
+                  <div className="text-[11px] text-slate-500 font-semibold">—</div>
                 </div>
               </div>
 
