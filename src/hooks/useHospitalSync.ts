@@ -38,14 +38,76 @@ export function useHospitalSync(hospitalId: string | null, options?: { autoRefre
     setError(null);
 
     try {
-      const result = await getHospitalByIdApi(hospitalId);
-      const backendHospital = result.hospital;
+      const backendHospital = await getHospitalByIdApi(hospitalId);
 
       if (backendHospital) {
-        const stampedHospital = {
-          ...backendHospital,
-          lastUpdated: backendHospital.lastUpdated || new Date().toISOString(),
-        };
+        const cached = hospitalService.getHospitalByIdSync(hospitalId);
+        const stampedHospital: Hospital = cached
+          ? {
+              ...cached,
+              name: backendHospital.name || cached.name,
+              address: backendHospital.address || cached.address,
+              phone: backendHospital.phone || cached.phone,
+              emergencyAvailable: backendHospital.emergency_available ?? cached.emergencyAvailable,
+              lastUpdated: backendHospital.updated_at || new Date().toISOString(),
+            }
+          : ({
+              id: backendHospital.id,
+              hospitalId: backendHospital.id,
+              name: backendHospital.name,
+              type: 'General Hospital',
+              address: backendHospital.address || '',
+              coordinates: {
+                lat: backendHospital.latitude || 0,
+                lng: backendHospital.longitude || 0,
+              },
+              phone: backendHospital.phone || '',
+              isOpen: true,
+              rating: 0,
+              specialties: [],
+              emergencyAvailable: backendHospital.emergency_available || false,
+              icuAvailable: false,
+              oxygenSupport: false,
+              ventilatorAvailability: false,
+              traumaLevel: 0,
+              cardiacCareAvailable: false,
+              strokeUnitAvailable: false,
+              orthopedicAvailable: false,
+              pediatricAvailable: false,
+              ambulanceAvailableCount: 0,
+              beds: { total: 0, available: 0, occupied: 0, reserved: 0 },
+              icu: { total: 0, available: 0, occupied: 0, reserved: 0 },
+              emergencyRooms: { total: 0, available: 0, occupied: 0, cleaning: 0 },
+              queue: { totalPatients: 0, criticalCount: 0, highCount: 0, moderateCount: 0, lowCount: 0, estimatedWaitTimeMinutes: 0, currentERLoadPercent: 0 },
+              ambulances: { total: 0, available: 0, dispatched: 0, enRoute: 0, atHospital: 0 },
+              doctors: { total: 0, available: 0, onDuty: 0, bySpecialization: {} },
+              facilities: {
+                emergencyDepartment: backendHospital.emergency_available || false,
+                icu: false,
+                oxygenSupport: false,
+                ventilator: false,
+                traumaCare: false,
+                cardiacCare: false,
+                strokeUnit: false,
+                orthopedicSurgeon: false,
+                pediatricEmergency: false,
+              },
+              distanceKm: 0,
+              travelTimeMinutes: 0,
+              trafficCondition: 'Moderate',
+              availableICUBeds: 0,
+              availableEmergencyBeds: 0,
+              availableBeds: 0,
+              totalBeds: 0,
+              totalICUBeds: 0,
+              totalEmergencyBeds: 0,
+              currentERLoadPercent: 0,
+              estimatedWaitTimeMinutes: 0,
+              operationalDataAvailable: true,
+              lastUpdated: backendHospital.updated_at || new Date().toISOString(),
+              updatedBy: 'hospital_staff',
+              configComplete: true,
+            } as Hospital);
         
         await hospitalService.updateHospital(stampedHospital);
         setHospital(stampedHospital);

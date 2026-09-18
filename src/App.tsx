@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { PreAlertBanner } from './components/PreAlertBanner';
@@ -17,12 +18,14 @@ import { PatientJourneyPage } from './pages/PatientJourneyPage';
 import { SystemInsightsPage } from './pages/SystemInsightsPage';
 import { PrivacySecurityPage } from './pages/PrivacySecurityPage';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { HospitalManagementPage } from './pages/HospitalManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
+  const [showRegister, setShowRegister] = useState<boolean>(false);
   const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
   const navigate = (path: string) => {
@@ -82,7 +85,10 @@ const AppContent: React.FC = () => {
 
   // Gate: show login page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} />;
+    if (showRegister) {
+      return <RegisterPage onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setShowRegister(false)} />;
+    }
+    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} onSwitchToRegister={() => setShowRegister(true)} />;
   }
 
   return (
@@ -109,9 +115,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 };
 

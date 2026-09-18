@@ -82,10 +82,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const { userLiveLocation, detectUserLiveLocation, isLocatingUser } = useApp();
 
   const activeUserLocation = patientLocation || {
-    lat: userLiveLocation.lat,
-    lng: userLiveLocation.lng,
-    address: userLiveLocation.address || 'Unknown location',
-    city: userLiveLocation.city || 'Unknown',
+    lat: userLiveLocation?.lat || 0,
+    lng: userLiveLocation?.lng || 0,
+    address: userLiveLocation?.address || 'Unknown location',
+    city: userLiveLocation?.city || 'Unknown',
   };
 
   const hasValidLocation = activeUserLocation.lat !== 0 && activeUserLocation.lng !== 0;
@@ -118,6 +118,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       setRouteInfo(null);
       return;
     }
+    if (!activeHospital.coordinates?.lat || !activeHospital.coordinates?.lng) return;
     mapService.getRoute(activeUserLocation.lat, activeUserLocation.lng, activeHospital.coordinates.lat, activeHospital.coordinates.lng)
       .then(r => {
         if (r) {
@@ -186,7 +187,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     return 13;
   }, [activeHospital, activeUserLocation]);
 
-  const googleMapsDirectionsUrl = activeHospital
+  const googleMapsDirectionsUrl = (activeHospital && activeHospital.coordinates?.lat && activeHospital.coordinates?.lng)
     ? `https://www.google.com/maps/dir/?api=1&origin=${activeUserLocation.lat},${activeUserLocation.lng}&destination=${activeHospital.coordinates.lat},${activeHospital.coordinates.lng}&travelmode=driving`
     : `https://www.google.com/maps/search/hospitals/@${activeUserLocation.lat},${activeUserLocation.lng},14z`;
 
@@ -397,7 +398,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* Active hospital info card */}
       {activeHospital && infoWindowOpen && (
-        <div className="absolute top-4 right-4 z-30 max-w-sm w-full p-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/90 animate-fade-in text-slate-900">
+        <div className="absolute top-[70px] right-4 z-30 max-w-sm w-full p-4 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/90 animate-fade-in text-slate-900">
           <div className="flex items-start justify-between gap-2 border-b border-slate-100 pb-2.5">
             <div>
               <div className="flex items-center gap-1.5">

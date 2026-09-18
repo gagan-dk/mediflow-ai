@@ -22,15 +22,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add the case-per-hospital uniqueness guard."""
-    op.create_unique_constraint(
-        'uq_queue_token_case_hospital',
-        'queue_tokens',
-        ['emergency_case_id', 'hospital_id'],
-    )
+    with op.batch_alter_table('queue_tokens') as batch_op:
+        batch_op.create_unique_constraint(
+            'uq_queue_token_case_hospital',
+            ['emergency_case_id', 'hospital_id'],
+        )
 
 
 def downgrade() -> None:
     """Remove the case-per-hospital uniqueness guard."""
-    op.drop_constraint(
-        'uq_queue_token_case_hospital', 'queue_tokens', type_='unique'
-    )
+    with op.batch_alter_table('queue_tokens') as batch_op:
+        batch_op.drop_constraint(
+            'uq_queue_token_case_hospital', type_='unique'
+        )

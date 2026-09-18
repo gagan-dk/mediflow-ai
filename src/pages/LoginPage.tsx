@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Activity,
   User,
@@ -19,6 +19,7 @@ import { UserRole } from '../types/user';
 interface LoginPageProps {
   onLoginSuccess: (role: UserRole) => void;
   sessionExpired?: boolean;
+  onSwitchToRegister?: () => void;
 }
 
 type RoleTab = 'patient' | 'hospital_staff' | 'admin';
@@ -75,7 +76,7 @@ const ROLE_CONFIGS: RoleConfig[] = [
   },
 ];
 
-export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExpired }) => {
+export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExpired, onSwitchToRegister }) => {
   const { login } = useApp();
   const [activeRole, setActiveRole] = useState<RoleTab>('patient');
   const [email, setEmail] = useState('');
@@ -116,13 +117,15 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExp
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center py-10 px-4 relative bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 overflow-x-hidden">
       {/* Animated background glows */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
-      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/8 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
-      <div className="absolute top-1/2 left-0 w-64 h-64 bg-purple-500/6 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className="absolute top-1/2 left-0 w-64 h-64 bg-purple-500/6 rounded-full blur-3xl" />
+      </div>
 
-      <div className={`w-full max-w-lg relative z-10 ${shake ? 'animate-shake' : ''}`}>
+      <div className={`w-full max-w-lg relative z-10 flex flex-col flex-1 justify-center ${shake ? 'animate-shake' : ''}`}>
         {/* Logo / Brand Header */}
         <div className="text-center mb-8 space-y-3">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-500 text-white shadow-2xl shadow-brand-600/40 mb-2">
@@ -266,14 +269,21 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExp
               </button>
             </form>
 
-            {/* Helper Text */}
             <div className="pt-1">
-              <div className="text-center text-[10px] text-slate-500 font-medium leading-relaxed">
+              <div className="text-center text-[10px] text-slate-500 font-medium leading-relaxed mt-2">
                 Use the credentials provided by your organization administrator.
               </div>
-              <p className="text-center text-[10px] text-slate-600 mt-2">
-                Patient accounts can also be registered via the API.
-              </p>
+              {onSwitchToRegister && (
+                <div className="text-center text-xs text-slate-400 mt-4">
+                  Don't have an account?{' '}
+                  <button 
+                    onClick={onSwitchToRegister}
+                    className="font-bold text-brand-400 hover:text-brand-300 transition-colors"
+                  >
+                    Register here
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -22,17 +22,16 @@ export async function getBeds(
   token?: string
 ): Promise<GetBedsResponse> {
   const qs = buildQuery({
-    hospitalId: query.hospitalId,
     wardType: query.wardType,
     status: query.status,
   });
-  return apiClient.get<GetBedsResponse>(`/beds${qs}`);
+  return apiClient.get<GetBedsResponse>(`/api/hospitals/${query.hospitalId}/beds${qs}`);
 }
 
 export async function updateBed(
   bedId: string,
   data: UpdateBedRequest,
-  token: string
+  token?: string
 ): Promise<UpdateBedResponse> {
-  return apiClient.put<UpdateBedResponse>(`/beds/${bedId}`, data);
+  return apiClient.put<UpdateBedResponse>(`/api/staff/beds/${bedId}`, data);
 }

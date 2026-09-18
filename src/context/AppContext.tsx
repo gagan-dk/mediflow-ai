@@ -19,7 +19,7 @@ import { hospitalService } from '../services/hospitalService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
-import { authLogin, authGetCurrentUser, type AuthUser } from '../services/api/authApi';
+import { useAuth } from './AuthContext';
 import { apiClient } from '../services/api/apiClient';
 import {
   createEmergencyCase,
@@ -54,6 +54,7 @@ interface AppContextType {
   authLoading: boolean;
   sessionExpired: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  register: (payload: any) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   logout: () => void;
 
   // User & Role
@@ -166,13 +167,15 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [sessionExpired, setSessionExpired] = useState<boolean>(false);
+  const { user, profile, loading: authLoading, login: authLogin, register: authRegister, logout: authLogout } = useAuth();
+  
+  // Local profile override for demo/UI changes (e.g., updateProfile) without hitting backend
+  const [localProfileOverride, setLocalProfileOverride] = useState<UserProfile | null>(null);
 
-  // Role & User — starts as guest; restored from backend on mount
-  const [currentUser, setCurrentUser] = useState<UserProfile>({
+  const isAuthenticated = !!user;
+  const sessionExpired = false;
+
+  const baseCurrentUser = profile || {
     id: 'usr-guest',
     name: 'Guest',
     role: 'patient',
@@ -180,7 +183,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     accountStatus: 'active',
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
-  });
+  };
+
+  const currentUser = localProfileOverride || baseCurrentUser;
 
   // Theme preference (light/dark), applied to <html> root
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
@@ -196,7 +201,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       root.classList.remove('dark');
     }
     localStorage.setItem('mediflow-theme', theme);
-    setCurrentUser(prev => ({ ...prev, theme }));
   }, [theme]);
 
   const setTheme = (next: 'light' | 'dark') => {
@@ -204,95 +208,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playChime();
   };
 
-  // ─── Role mapping: backend uppercase → frontend lowercase ──────────────────
-  const mapBackendRole = (backendRole: string): UserRole => {
-    switch (backendRole) {
-      case 'PATIENT': return 'patient';
-      case 'HOSPITAL_STAFF': return 'hospital_staff';
-      case 'ADMIN': return 'admin';
-      default: return 'patient';
-    }
-  };
-
-  // ─── Map backend user response to frontend UserProfile ─────────────────────
-  const mapUserFromBackend = (backendUser: AuthUser, token: string, expiresIn: number): UserProfile => {
-    const role = mapBackendRole(backendUser.role);
-    const profile: UserProfile = {
-      id: backendUser.id,
-      name: backendUser.full_name,
-      role,
-      email: backendUser.email,
-      phone: backendUser.phone || undefined,
-      avatarInitials: backendUser.full_name
-        .split(' ')
-        .map(w => w[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase(),
-      accessToken: token,
-      tokenExpiresAt: Date.now() + expiresIn * 1000,
-      accountStatus: 'active',
-      createdAt: backendUser.created_at,
-      lastLogin: new Date().toISOString(),
-    };
-
-    if (role === 'patient') {
-      profile.age = backendUser.age;
-      profile.gender = backendUser.gender;
-      profile.bloodGroup = backendUser.blood_group;
-      profile.location = backendUser.location;
-    } else if (role === 'hospital_staff') {
-      profile.staffId = backendUser.staff_id;
-      profile.department = backendUser.department;
-      profile.experienceYears = backendUser.experience_years;
-      profile.hospitalId = backendUser.hospital_id;
-      profile.hospitalName = backendUser.hospital_name;
-    } else if (role === 'admin') {
-      profile.adminLevel = 'System Administrator';
-    }
-
-    return profile;
-  };
-
-  // ─── Token expiration check ───────────────────────────────────────────────
-  const isTokenExpired = (): boolean => {
-    const expiresAt = localStorage.getItem('auth_token_expires_at');
-    if (!expiresAt) return true;
-    return Date.now() > parseInt(expiresAt, 10);
-  };
-
-  // ─── Session restoration on mount ─────────────────────────────────────────
-  useEffect(() => {
-    const restoreSession = async () => {
-      const storedToken = localStorage.getItem('auth_token');
-      if (!storedToken || isTokenExpired()) {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_token_expires_at');
-        setAuthLoading(false);
-        return;
-      }
-
-      try {
-        apiClient.setAccessToken(storedToken);
-        const backendUser = await authGetCurrentUser();
-        const expiresAt = localStorage.getItem('auth_token_expires_at');
-        const expiresInMs = expiresAt ? parseInt(expiresAt, 10) - Date.now() : 28800 * 1000;
-        const expiresInSec = Math.max(0, Math.floor(expiresInMs / 1000));
-        const profile = mapUserFromBackend(backendUser, storedToken, expiresInSec);
-        setCurrentUser(profile);
-        setIsAuthenticated(true);
-      } catch {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_token_expires_at');
-        apiClient.setAccessToken(null);
-        setSessionExpired(true);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-
-    restoreSession();
-  }, []);
+  // Removed static role mapping and token restoration, handled by AuthContext
 
   // Live Location state - will be updated with real GPS coordinates
   const [userLiveLocation, setUserLiveLocation] = useState<UserGeoLocation>({
@@ -569,41 +485,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // ─── Authentication ──────────────────────────────────────────────────────
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
-    try {
-      const response = await authLogin({ email, password });
-      const { access_token, expires_in, user } = response;
-
-      apiClient.setAccessToken(access_token);
-      localStorage.setItem('auth_token_expires_at', String(Date.now() + expires_in * 1000));
-
-      const profile = mapUserFromBackend(user, access_token, expires_in);
-      setCurrentUser(profile);
-      setIsAuthenticated(true);
-      setSessionExpired(false);
-
-      return { success: true, role: profile.role };
-    } catch (err: any) {
-      const message = err?.message || 'Login failed. Please check your credentials.';
-      return { success: false, error: message };
-    }
+    return await authLogin(email, password);
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_token_expires_at');
-    apiClient.setAccessToken(null);
-    setIsAuthenticated(false);
-    setSessionExpired(false);
-    setCurrentUser({
-      id: 'usr-guest',
-      name: 'Guest',
-      role: 'patient',
-      email: 'guest@mediflow.ai',
-      accountStatus: 'active',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-    });
-    // Reset session state
+  const register = async (payload: any): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
+    return await authRegister(payload);
+  };
+
+  const logout = async () => {
+    await authLogout();
+    setLocalProfileOverride(null);
     setAssessmentResult(null);
     setCurrentAssessmentInput(null);
     setMyQueueToken(null);
@@ -616,7 +507,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setUserRole = (role: UserRole) => {
     let name = 'Demo User';
 
-    const profile: UserProfile = {
+    const newProfile: UserProfile = {
       id: `usr-${role}`,
       name,
       role,
@@ -627,7 +518,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       lastLogin: new Date().toISOString(),
     };
 
-    setCurrentUser(profile);
+    setLocalProfileOverride(newProfile);
 
     addNotification({
       title: `Switched View: ${role.replace('_', ' ').toUpperCase()}`,
@@ -637,8 +528,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    setCurrentUser(prev => {
-      const updated = { ...prev, ...updates };
+    setLocalProfileOverride(prev => {
+      const current = prev || currentUser;
+      const updated = { ...current, ...updates };
       // Keep avatar initials in sync with the new name
       if (updates.name) {
         updated.avatarInitials = updates.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -1295,6 +1187,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         authLoading,
         sessionExpired,
         login,
+        register,
         logout,
         currentUser,
         setUserRole,

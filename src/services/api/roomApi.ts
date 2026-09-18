@@ -33,38 +33,37 @@ export async function getRooms(
     department: query.department,
   });
   return apiClient.get<GetRoomsResponse>(
-    `/hospitals/${query.hospitalId}/rooms${qs}`
+    `/api/hospitals/${query.hospitalId}/rooms${qs}`
   );
 }
 
 export async function createRoom(
   data: CreateRoomRequest,
-  token: string
+  token?: string
 ): Promise<CreateRoomResponse> {
   return apiClient.post<CreateRoomResponse>(
-    `/hospitals/${data.hospitalId}/rooms`,
+    `/api/staff/rooms`,
     data
   );
 }
 
 export async function updateRoom(
-  hospitalId: string,
   roomId: string,
   data: UpdateRoomRequest,
-  token: string
+  token?: string
 ): Promise<UpdateRoomResponse> {
   return apiClient.put<UpdateRoomResponse>(
-    `/hospitals/${hospitalId}/rooms/${roomId}`,
+    `/api/staff/rooms/${roomId}`,
     data
   );
 }
 
 export async function deleteRoom(
-  hospitalId: string,
   roomId: string,
-  token: string
+  token?: string
 ): Promise<DeleteRoomResponse> {
   return apiClient.delete<DeleteRoomResponse>(
-    `/hospitals/${hospitalId}/rooms/${roomId}`
+    `/api/staff/rooms/${roomId}`
   );
 }
+

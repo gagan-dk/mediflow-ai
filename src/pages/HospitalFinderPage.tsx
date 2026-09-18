@@ -316,9 +316,9 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
       
       if (query) {
         const matchesSearch = 
-          h.name.toLowerCase().includes(query) ||
-          h.address.toLowerCase().includes(query) ||
-          h.specialties.some((s: string) => s.toLowerCase().includes(query)) ||
+          h.name?.toLowerCase().includes(query) ||
+          h.address?.toLowerCase().includes(query) ||
+          (h.specialties || []).some((s: string) => s?.toLowerCase().includes(query)) ||
           Boolean(h.isDirectSearchMatch);
         if (!matchesSearch) return false;
         if (filterType === 'icu') return h.availableICUBeds > 0;
@@ -343,8 +343,8 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
     const query = searchQuery.trim().toLowerCase();
     if (query) {
       return [...filteredHospitals].sort((a, b) => {
-        const aName = a.hospital.name.toLowerCase();
-        const bName = b.hospital.name.toLowerCase();
+        const aName = a.hospital.name?.toLowerCase() || '';
+        const bName = b.hospital.name?.toLowerCase() || '';
         const aDirect = a.hospital.isDirectSearchMatch || aName.includes(query) ? 0 : 1;
         const bDirect = b.hospital.isDirectSearchMatch || bName.includes(query) ? 0 : 1;
         if (aDirect !== bDirect) return aDirect - bDirect;

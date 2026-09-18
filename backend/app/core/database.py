@@ -25,6 +25,8 @@ connect_args: dict = {}
 if settings.database_url.startswith("postgresql"):
     connect_args["connect_timeout"] = 3
     connect_args["attempts"] = 1
+elif settings.database_url.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
 
 engine = create_engine(
     settings.database_url,

@@ -24,7 +24,7 @@ export async function getQueue(
   query: GetQueueQuery,
   token?: string
 ): Promise<GetQueueResponse> {
-  return apiClient.get<GetQueueResponse>(`/queue/${query.hospitalId}`);
+  return apiClient.get<GetQueueResponse>(`/api/queue/${query.hospitalId}`);
 }
 
 /**
@@ -33,10 +33,10 @@ export async function getQueue(
 export async function updateQueueStatus(
   patientId: string,
   data: UpdateQueueStatusRequest,
-  token: string
+  token?: string
 ): Promise<UpdateQueueStatusResponse> {
   return apiClient.put<UpdateQueueStatusResponse>(
-    `/queue/${patientId}`,
+    `/api/queue/tokens/${patientId}/status`,
     data
   );
 }
@@ -46,7 +46,7 @@ export async function updateQueueStatus(
  */
 export async function removeFromQueue(
   patientId: string,
-  token: string
+  token?: string
 ): Promise<{ message: string }> {
-  return apiClient.delete(`/queue/${patientId}`);
+  return apiClient.put(`/api/queue/tokens/${patientId}/status`, { status: 'CANCELLED' });
 }
