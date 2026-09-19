@@ -53,8 +53,8 @@ interface AppContextType {
   isAuthenticated: boolean;
   authLoading: boolean;
   sessionExpired: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
-  register: (email: string, password: string, fullName: string, phone?: string, role?: UserRole, hospitalId?: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  login: (email: string, password: string, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  register: (payload: any, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   loginAsDemo: (role: UserRole) => void;
   logout: () => void;
 
@@ -657,7 +657,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setSessionExpired(false);
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
+  const login = async (email: string, password: string, selectedRole?: UserRole): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
     try {
       const response = await authLogin({ email, password });
       const { access_token, expires_in, user } = response;
@@ -666,6 +666,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       localStorage.setItem('auth_token_expires_at', String(Date.now() + expires_in * 1000));
 
       const profile = mapUserFromBackend(user, access_token, expires_in);
+      if (selectedRole) profile.role = selectedRole;
       setCurrentUser(profile);
       setIsAuthenticated(true);
       setSessionExpired(false);
@@ -693,11 +694,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const register = async (email: string, password: string, fullName: string, phone?: string, role: UserRole = 'patient', hospitalId?: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
+  const register = async (payload: any, selectedRole?: UserRole): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
     try {
-      const backendRole = role === 'hospital_staff' ? 'HOSPITAL_STAFF' : 'PATIENT';
-      await authRegister({ email, password, full_name: fullName, phone, role: backendRole, hospital_id: hospitalId });
-      const loginResult = await login(email, password);
+      const backendRole = selectedRole === 'hospital_staff' ? 'HOSPITAL_STAFF' : 'PATIENT';
+      await authRegister({ ...payload, role: backendRole });
+      const loginResult = await login(payload.email, payload.password, selectedRole);
       if (loginResult.success) {
         return { success: true, role: loginResult.role };
       }
