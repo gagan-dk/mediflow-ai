@@ -288,6 +288,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
         </div>
       </section>
 
+      {/* About MediFlow */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-6 items-stretch">
+          <div className="p-7 bg-slate-900 rounded-2xl text-white shadow-xl space-y-4">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-sky-300">
+              <HeartPulse className="w-4 h-4" />
+              About MediFlow AI
+            </div>
+            <h3 className="text-2xl font-extrabold tracking-tight">One coordinated view for every emergency handoff.</h3>
+            <p className="text-sm leading-relaxed text-slate-300">
+              MediFlow connects patients, hospital teams, and emergency transport through shared capacity signals. Staff can move from this overview into hospital operations, while patients can find the right care with live location and facility data.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600" />
+              <h4 className="font-bold text-slate-900">Built for coordination</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">Shared hospital status, queue context, and emergency pre-alerts in one workspace.</p>
+            </div>
+            <div className="p-5 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-2">
+              <Navigation className="w-5 h-5 text-brand-600" />
+              <h4 className="font-bold text-slate-900">Location-aware care</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">Real hospital discovery uses live location to help people and teams act faster.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Key Features Grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div className="text-center space-y-2 max-w-2xl mx-auto">

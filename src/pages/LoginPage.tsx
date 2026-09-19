@@ -19,7 +19,7 @@ import { UserRole } from '../types/user';
 interface LoginPageProps {
   onLoginSuccess: (role: UserRole) => void;
   sessionExpired?: boolean;
-  onSwitchToRegister?: () => void;
+  onSwitchToRegister?: (role: UserRole) => void;
 }
 
 type RoleTab = 'patient' | 'hospital_staff' | 'admin';
@@ -108,7 +108,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExp
     setIsLoading(false);
 
     if (result.success) {
-      onLoginSuccess(result.role || 'patient');
+      onLoginSuccess(activeRole);
     } else {
       setError(result.error || 'Login failed. Please check your credentials.');
       setShake(true);
@@ -277,7 +277,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExp
                 <div className="text-center text-xs text-slate-400 mt-4">
                   Don't have an account?{' '}
                   <button 
-                    onClick={onSwitchToRegister}
+                    onClick={() => onSwitchToRegister(activeRole === 'hospital_staff' ? 'hospital_staff' : 'patient')}
                     className="font-bold text-brand-400 hover:text-brand-300 transition-colors"
                   >
                     Register here

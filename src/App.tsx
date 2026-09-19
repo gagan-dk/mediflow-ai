@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
@@ -26,6 +26,7 @@ import { SettingsPage } from './pages/SettingsPage';
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
   const [showRegister, setShowRegister] = useState<boolean>(false);
+  const [registrationRole, setRegistrationRole] = useState<'patient' | 'hospital_staff'>('patient');
   const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
   const navigate = (path: string) => {
@@ -87,7 +88,7 @@ const AppContent: React.FC = () => {
   const handleLoginSuccess = (role: string) => {
     switch (role) {
       case 'hospital_staff':
-        navigate('/hospital');
+        navigate('/');
         break;
       case 'admin':
         navigate('/admin');
@@ -98,6 +99,13 @@ const AppContent: React.FC = () => {
         break;
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (currentUser.role === 'admin' && currentPath === '/') {
+      setCurrentPath('/admin');
+    }
+  }, [currentPath, currentUser.role, isAuthenticated]);
 
   // Gate: show loading while checking session
   if (authLoading) {
@@ -114,9 +122,9 @@ const AppContent: React.FC = () => {
   // Gate: show login page if not authenticated
   if (!isAuthenticated) {
     if (showRegister) {
-      return <RegisterPage onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setShowRegister(false)} />;
+      return <RegisterPage registrationRole={registrationRole} onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setShowRegister(false)} />;
     }
-    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} onSwitchToRegister={() => setShowRegister(true)} />;
+    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} onSwitchToRegister={(role) => { setRegistrationRole(role === 'hospital_staff' ? 'hospital_staff' : 'patient'); setShowRegister(true); }} />;
   }
 
   return (

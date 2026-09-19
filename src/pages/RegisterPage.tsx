@@ -17,9 +17,10 @@ import { UserRole } from '../types/user';
 interface RegisterPageProps {
   onRegisterSuccess: (role: UserRole) => void;
   onSwitchToLogin: () => void;
+  registrationRole?: 'patient' | 'hospital_staff';
 }
 
-export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, onSwitchToLogin }) => {
+export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, onSwitchToLogin, registrationRole = 'patient' }) => {
   const { register } = useApp();
   
   const [fullName, setFullName] = useState('');
@@ -49,7 +50,10 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
     setIsLoading(true);
     setError('');
 
-    const result = await register({ email: trimmedEmail, password, full_name: trimmedName }, 'patient');
+    const result = await register(
+      { email: trimmedEmail, password, full_name: trimmedName, role: registrationRole === 'hospital_staff' ? 'HOSPITAL_STAFF' : 'PATIENT' },
+      registrationRole,
+    );
     setIsLoading(false);
 
     if (result.success) {
@@ -80,16 +84,16 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
               <span className="text-3xl font-extrabold text-white tracking-tight">MediFlow</span>
               <span className="px-2 py-0.5 bg-brand-500/30 text-brand-300 text-xs font-extrabold rounded-lg uppercase tracking-wider border border-brand-500/40">AI</span>
             </div>
-            <p className="text-sm text-slate-400 font-medium">Create your patient account</p>
+            <p className="text-sm text-slate-400 font-medium">Create your {registrationRole === 'hospital_staff' ? 'hospital staff' : 'patient'} account</p>
           </div>
         </div>
 
         {/* Main Card */}
         <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-300">
           
-          <div className="bg-gradient-to-r from-sky-600/20 to-blue-700/20 p-4 border-b border-sky-500/30 flex items-center justify-center gap-3">
-             <User className="text-sky-400 w-5 h-5" />
-             <span className="text-sky-100 font-semibold text-sm">Patient / Caregiver Registration</span>
+           <div className={`bg-gradient-to-r ${registrationRole === 'hospital_staff' ? 'from-emerald-600/20 to-teal-700/20 border-emerald-500/30' : 'from-sky-600/20 to-blue-700/20 border-sky-500/30'} p-4 border-b flex items-center justify-center gap-3`}>
+             <User className={registrationRole === 'hospital_staff' ? 'text-emerald-400 w-5 h-5' : 'text-sky-400 w-5 h-5'} />
+             <span className={`${registrationRole === 'hospital_staff' ? 'text-emerald-100' : 'text-sky-100'} font-semibold text-sm`}>{registrationRole === 'hospital_staff' ? 'Hospital Staff Registration' : 'Patient / Caregiver Registration'}</span>
           </div>
 
           {/* Form Body */}

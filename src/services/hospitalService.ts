@@ -130,12 +130,17 @@ class HospitalService {
     const existing = loadHospitalsFromStorage();
     const merged: Hospital[] = [...existing];
     for (const nh of discovered) {
-      const existingIdx = merged.findIndex(h =>
-        h.id === nh.id ||
-        h.hospitalId === nh.hospitalId ||
-        (Math.abs(h.coordinates.lat - nh.coordinates.lat) < 0.003 &&
-          Math.abs(h.coordinates.lng - nh.coordinates.lng) < 0.003)
-      );
+      const existingIdx = merged.findIndex(h => {
+        if (h.id === nh.id || h.hospitalId === nh.hospitalId) return true;
+        const hCoordinates = h.coordinates;
+        const nhCoordinates = nh.coordinates;
+        return Boolean(
+          hCoordinates &&
+          nhCoordinates &&
+          Math.abs(hCoordinates.lat - nhCoordinates.lat) < 0.003 &&
+          Math.abs(hCoordinates.lng - nhCoordinates.lng) < 0.003
+        );
+      });
       if (existingIdx >= 0) {
         merged[existingIdx] = { ...merged[existingIdx], ...nh };
       } else {

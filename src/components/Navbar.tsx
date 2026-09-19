@@ -61,7 +61,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
   ].filter(link => (link.roles as string[]).includes(currentUser.role));
 
   const handleNavClick = (path: string) => {
-    navigate(path);
+    const destination = path === '/'
+      ? currentUser.role === 'admin'
+          ? '/admin'
+          : '/'
+      : path;
+    navigate(destination);
     setIsMobileMenuOpen(false);
   };
 

@@ -78,7 +78,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    } = useStaffHospital(currentUser.staffToken || null);
 
    const selectedHospitalForProfile: HospitalType | null = profileHospitalId
-     ? backendHospital || getHospitalById(profileHospitalId)
+     ? getHospitalById(profileHospitalId) || (backendHospital?.hospitalId === profileHospitalId ? backendHospital : null)
      : null;
 
    const filteredHospitals = hospitals.filter(hospital =>
@@ -97,19 +97,10 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    }, [staffError, addNotification]);
 
    const handleSelectHospital = (hospital: HospitalType) => {
-     const staffHospitalId = currentUser.hospitalId;
-     if (staffHospitalId && hospital.hospitalId !== staffHospitalId && hospital.id !== staffHospitalId) {
-       addNotification({
-         title: 'Access Restricted',
-         message: `You can only manage your assigned hospital (${currentUser.hospitalName || staffHospitalId}).`,
-         type: 'system',
-       });
-       return;
-     }
      setSelectedHospital(hospital);
      setProfileHospitalId(hospital.hospitalId || hospital.id);
      setActiveSection('profile');
-     refreshHospital();
+     if (backendHospital?.hospitalId === (hospital.hospitalId || hospital.id)) refreshHospital();
    };
 
    const handleBackToSelection = () => {
@@ -120,9 +111,10 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    const profileDoctors = backendDoctors.length > 0 ? backendDoctors : (selectedHospitalForProfile?.doctorList || []);
    const profileRooms = backendRooms.length > 0 ? backendRooms : (selectedHospitalForProfile?.roomsList || []);
    const activeHospitalId = selectedHospitalForProfile?.hospitalId || selectedHospitalForProfile?.id || '';
+  const canUseBackend = Boolean(currentUser.staffToken && backendHospital && backendHospital.hospitalId === activeHospitalId);
 
   const handleAddDoctor = async (doctor: Omit<Doctor, 'id'>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await addDoctorApi({
         name: doctor.name,
         specialization: doctor.specialization,
@@ -144,7 +136,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleUpdateDoctor = async (id: string, updates: Partial<Doctor>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await updateDoctorApi(id, updates);
       if (success) {
         addNotification({ title: 'Success', message: 'Doctor updated successfully', type: 'success' });
@@ -155,7 +147,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleRemoveDoctor = async (id: string) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await removeDoctorApi(id);
       if (success) {
         addNotification({ title: 'Success', message: 'Doctor removed successfully', type: 'success' });
@@ -166,7 +158,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleAddRoom = async (room: Omit<Room, 'id'>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await addRoomApi({
         roomNumber: room.roomNumber,
         type: room.type,
@@ -185,7 +177,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleUpdateRoom = async (id: string, updates: Partial<Room>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await updateRoomApi(id, updates);
       if (success) {
         addNotification({ title: 'Success', message: 'Room updated successfully', type: 'success' });
@@ -196,7 +188,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleRemoveRoom = async (id: string) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await removeRoomApi(id);
       if (success) {
         addNotification({ title: 'Success', message: 'Room removed successfully', type: 'success' });
