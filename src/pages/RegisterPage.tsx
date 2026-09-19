@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import {
   Activity,
   User,
+  Stethoscope,
+  ShieldCheck,
   Eye,
   EyeOff,
   UserPlus,
@@ -17,11 +19,67 @@ import { UserRole } from '../types/user';
 interface RegisterPageProps {
   onRegisterSuccess: (role: UserRole) => void;
   onSwitchToLogin: () => void;
+  initialRole?: UserRole;
 }
 
-export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, onSwitchToLogin }) => {
+type RoleTab = 'patient' | 'hospital_staff' | 'admin';
+
+interface RoleConfig {
+  key: RoleTab;
+  label: string;
+  icon: React.FC<{ className?: string }>;
+  emoji: string;
+  description: string;
+  gradient: string;
+  accentColor: string;
+  bgLight: string;
+  borderColor: string;
+  badgeText: string;
+}
+
+const ROLE_CONFIGS: RoleConfig[] = [
+  {
+    key: 'patient',
+    label: 'Patient / Caregiver',
+    icon: User,
+    emoji: '👤',
+    description: 'Access emergency assessment, track your ambulance, view your queue token, and follow your care journey.',
+    gradient: 'from-sky-600 to-blue-700',
+    accentColor: 'text-sky-600',
+    bgLight: 'bg-sky-50',
+    borderColor: 'border-sky-200',
+    badgeText: 'Patient Portal',
+  },
+  {
+    key: 'hospital_staff',
+    label: 'Hospital Staff',
+    icon: Stethoscope,
+    emoji: '🩺',
+    description: 'Full ER Command Center access — manage pre-alerts, coordinate incoming emergencies, and control bed allocation.',
+    gradient: 'from-emerald-600 to-teal-700',
+    accentColor: 'text-emerald-600',
+    bgLight: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
+    badgeText: 'Clinical Access',
+  },
+  {
+    key: 'admin',
+    label: 'Hospital Admin',
+    icon: ShieldCheck,
+    emoji: '🏢',
+    description: 'Administrative oversight — full system analytics, regional load balancing, and hospital network management.',
+    gradient: 'from-purple-600 to-indigo-700',
+    accentColor: 'text-purple-600',
+    bgLight: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    badgeText: 'Admin Access',
+  },
+];
+
+export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, onSwitchToLogin, initialRole = 'patient' }) => {
   const { register } = useApp();
   
+  const [activeRole, setActiveRole] = useState<RoleTab>(initialRole);
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,6 +89,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [shake, setShake] = useState(false);
+
+  const currentConfig = ROLE_CONFIGS.find(r => r.key === activeRole)!;
+
+  const handleRoleSwitch = (role: RoleTab) => {
+    setActiveRole(role);
+    setError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,11 +114,11 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
     setIsLoading(true);
     setError('');
 
-    const result = await register({ email: trimmedEmail, password, full_name: trimmedName }, 'patient');
+    const result = await register({ email: trimmedEmail, password, full_name: trimmedName }, activeRole);
     setIsLoading(false);
 
     if (result.success) {
-      onRegisterSuccess(result.role || 'patient');
+      onRegisterSuccess(result.role || activeRole);
     } else {
       setError(result.error || 'Registration failed. Please try again.');
       setShake(true);
@@ -62,14 +127,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center py-10 px-4 relative bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-brand-950 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Animated background glows */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-sky-500/8 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-      </div>
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-sky-500/8 rounded-full blur-3xl animate-pulse pointer-events-none" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-0 w-64 h-64 bg-purple-500/6 rounded-full blur-3xl pointer-events-none" />
 
-      <div className={`w-full max-w-lg relative z-10 flex flex-col flex-1 justify-center ${shake ? 'animate-shake' : ''}`}>
+      <div className="w-full max-w-lg relative z-10">
         {/* Logo / Brand Header */}
         <div className="text-center mb-8 space-y-3">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-500 text-white shadow-2xl shadow-brand-600/40 mb-2">
@@ -80,22 +144,58 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
               <span className="text-3xl font-extrabold text-white tracking-tight">MediFlow</span>
               <span className="px-2 py-0.5 bg-brand-500/30 text-brand-300 text-xs font-extrabold rounded-lg uppercase tracking-wider border border-brand-500/40">AI</span>
             </div>
-            <p className="text-sm text-slate-400 font-medium">Create your patient account</p>
+            <p className="text-sm text-slate-400 font-medium">Create your MediFlow AI account</p>
           </div>
         </div>
 
-        {/* Main Card */}
+        {/* Main Registration Card */}
         <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 shadow-2xl overflow-hidden transition-all duration-300">
-          
-          <div className="bg-gradient-to-r from-sky-600/20 to-blue-700/20 p-4 border-b border-sky-500/30 flex items-center justify-center gap-3">
-             <User className="text-sky-400 w-5 h-5" />
-             <span className="text-sky-100 font-semibold text-sm">Patient / Caregiver Registration</span>
+          {/* Role Selector Tabs */}
+          <div className="flex border-b border-white/10">
+            {ROLE_CONFIGS.map((cfg) => {
+              const Icon = cfg.icon;
+              const isActive = cfg.key === activeRole;
+              return (
+                <button
+                  key={cfg.key}
+                  onClick={() => handleRoleSwitch(cfg.key)}
+                  className={`flex-1 py-4 px-2 text-center transition-all duration-200 relative group ${
+                    isActive ? `bg-gradient-to-b ${currentConfig.gradient} opacity-15` : ''
+                  }`}
+                >
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-b opacity-15" />
+                  )}
+                  <div className="relative flex flex-col items-center gap-1.5">
+                    <Icon className={`w-5 h-5 transition-all ${isActive ? currentConfig.accentColor : 'text-slate-400'}`} />
+                    <span className="text-[11px] font-semibold leading-tight">{cfg.label.split('/')[0].trim()}</span>
+                  </div>
+                  {isActive && (
+                    <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${currentConfig.gradient}`} />
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Form Body */}
-          <div className="p-7 space-y-5">
+          <div className="p-7 space-y-4">
+            {/* Role Description Card */}
+            <div className={`p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 ${currentConfig.bgLight} ${currentConfig.borderColor}`}>
+              <div className="flex items-center gap-2">
+                <span className="text-xl">{currentConfig.emoji}</span>
+                <div>
+                  <div className="text-sm font-bold text-white">{currentConfig.label}</div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-white/10 text-slate-300">
+                    {currentConfig.badgeText}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">{currentConfig.description}</p>
+            </div>
+
+            {/* Registration Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
-              
               {/* Full Name */}
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-400 flex items-center gap-1.5">
@@ -183,7 +283,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full mt-2 py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-brand-600 to-sky-500 shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                className={`w-full py-3.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r ${currentConfig.gradient} shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed`}
               >
                 {isLoading ? (
                   <>
@@ -193,12 +293,13 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
                 ) : (
                   <>
                     <UserPlus className="w-4 h-4" />
-                    <span>Create Account</span>
+                    <span>Create {currentConfig.label.split('/')[0].trim()} Account</span>
                   </>
                 )}
               </button>
             </form>
 
+            {/* Switch to Login */}
             <div className="pt-2 text-center">
               <span className="text-xs text-slate-400">Already have an account? </span>
               <button 
@@ -217,6 +318,9 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
             <HeartPulse className="w-3.5 h-3.5 text-red-400" />
             <span>MediFlow AI — Smart India Hackathon 2025 Prototype</span>
           </div>
+          <p className="text-[10px] text-slate-600">
+            This is a demonstration system. No real patient data is processed or stored.
+          </p>
         </div>
       </div>
     </div>

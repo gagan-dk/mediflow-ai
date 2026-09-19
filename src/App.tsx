@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { PreAlertBanner } from './components/PreAlertBanner';
 import { ReroutingAlertModal } from './components/ReroutingAlertModal';
+import { UserRole } from './types/user';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -26,6 +27,7 @@ import { SettingsPage } from './pages/SettingsPage';
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
   const [showRegister, setShowRegister] = useState<boolean>(false);
+  const [registerRole, setRegisterRole] = useState<UserRole>('patient');
   const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
   const navigate = (path: string) => {
@@ -85,17 +87,15 @@ const AppContent: React.FC = () => {
   };
 
   const handleLoginSuccess = (role: string) => {
-    switch (role) {
-      case 'hospital_staff':
-        navigate('/hospital');
-        break;
-      case 'admin':
-        navigate('/admin');
-        break;
-      case 'patient':
-      default:
-        navigate('/');
-        break;
+    // Role-based routing after login
+    if (role === 'patient') {
+      navigate('/');
+    } else if (role === 'hospital_staff') {
+      navigate('/hospital');
+    } else if (role === 'admin') {
+      navigate('/command-center');
+    } else {
+      navigate('/');
     }
   };
 
@@ -114,9 +114,20 @@ const AppContent: React.FC = () => {
   // Gate: show login page if not authenticated
   if (!isAuthenticated) {
     if (showRegister) {
-      return <RegisterPage onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setShowRegister(false)} />;
+      return <RegisterPage 
+        onRegisterSuccess={handleLoginSuccess} 
+        onSwitchToLogin={() => setShowRegister(false)} 
+        initialRole={registerRole}
+      />;
     }
-    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} onSwitchToRegister={() => setShowRegister(true)} />;
+    return <LoginPage 
+      onLoginSuccess={handleLoginSuccess} 
+      sessionExpired={sessionExpired} 
+      onSwitchToRegister={(role?: UserRole) => {
+        if (role) setRegisterRole(role);
+        setShowRegister(true);
+      }} 
+    />;
   }
 
   return (

@@ -19,7 +19,7 @@ import { UserRole } from '../types/user';
 interface LoginPageProps {
   onLoginSuccess: (role: UserRole) => void;
   sessionExpired?: boolean;
-  onSwitchToRegister?: () => void;
+  onSwitchToRegister?: (role: UserRole) => void;
 }
 
 type RoleTab = 'patient' | 'hospital_staff' | 'admin';
@@ -277,10 +277,10 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, sessionExp
                 <div className="text-center text-xs text-slate-400 mt-4">
                   Don't have an account?{' '}
                   <button 
-                    onClick={onSwitchToRegister}
+                    onClick={() => onSwitchToRegister(activeRole)}
                     className="font-bold text-brand-400 hover:text-brand-300 transition-colors"
                   >
-                    Register here
+                    Register as {currentConfig.label.split('/')[0].trim()}
                   </button>
                 </div>
               )}
