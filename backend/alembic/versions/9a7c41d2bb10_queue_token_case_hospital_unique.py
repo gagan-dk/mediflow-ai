@@ -11,6 +11,7 @@ Create Date: 2026-09-05 16:30:00.000000
 from typing import Sequence, Union
 
 from alembic import op
+from sqlalchemy import inspect
 
 
 # revision identifiers, used by Alembic.
@@ -22,15 +23,30 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add the case-per-hospital uniqueness guard."""
-    op.create_unique_constraint(
-        'uq_queue_token_case_hospital',
-        'queue_tokens',
-        ['emergency_case_id', 'hospital_id'],
-    )
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        with op.batch_alter_table("queue_tokens") as batch_op:
+            batch_op.create_unique_constraint(
+                'uq_queue_token_case_hospital',
+                ['emergency_case_id', 'hospital_id'],
+            )
+    else:
+        op.create_unique_constraint(
+            'uq_queue_token_case_hospital',
+            'queue_tokens',
+            ['emergency_case_id', 'hospital_id'],
+        )
 
 
 def downgrade() -> None:
     """Remove the case-per-hospital uniqueness guard."""
-    op.drop_constraint(
-        'uq_queue_token_case_hospital', 'queue_tokens', type_='unique'
-    )
+    bind = op.get_bind()
+    if bind.dialect.name == "sqlite":
+        with op.batch_alter_table("queue_tokens") as batch_op:
+            batch_op.drop_constraint(
+                'uq_queue_token_case_hospital', type_='unique'
+            )
+    else:
+        op.drop_constraint(
+            'uq_queue_token_case_hospital', 'queue_tokens', type_='unique'
+        )

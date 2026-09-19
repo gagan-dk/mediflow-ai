@@ -42,7 +42,11 @@ export function useStaffHospital(token: string | null): UseStaffHospitalReturn {
 
   const refreshHospital = useCallback(async () => {
     if (!token) {
+      // No token = demo mode or patient view; skip backend fetch and stop loading
       setLoading(false);
+      setHospital(null);
+      setDoctors([]);
+      setRooms([]);
       return;
     }
 

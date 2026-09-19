@@ -1,9 +1,7 @@
 """Pydantic schemas for authentication.
 
-Request schemas never accept a role or a hospital id: self-registration always
-creates `PATIENT` accounts and `HOSPITAL_STAFF` / `ADMIN` roles are assigned
-server-side by an admin. Login uses a generic, safe error message. Token
-responses carry a short-lived access token and never expose `password_hash`.
+Patients and hospital staff may self-register. Staff registration requires a
+hospital assignment; admin accounts remain administrator-managed.
 """
 
 from datetime import datetime
@@ -26,7 +24,7 @@ def _validate_password_bytes(password: str) -> str:
 
 
 class RegisterRequest(BaseModel):
-    """Self-service registration payload (patient accounts only)."""
+    """Self-service registration payload for patients or hospital staff."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -34,6 +32,8 @@ class RegisterRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     full_name: str = Field(min_length=1, max_length=255)
     phone: str | None = Field(default=None, max_length=32)
+    role: UserRole = UserRole.PATIENT
+    hospital_id: str | None = Field(default=None, min_length=1, max_length=36)
 
     _validate_password = field_validator("password")(_validate_password_bytes)
 

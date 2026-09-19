@@ -19,7 +19,7 @@ import { hospitalService } from '../services/hospitalService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
-import { authLogin, authGetCurrentUser, type AuthUser } from '../services/api/authApi';
+import { authLogin, authRegister, authGetCurrentUser, type AuthUser } from '../services/api/authApi';
 import { apiClient } from '../services/api/apiClient';
 import {
   createEmergencyCase,
@@ -54,6 +54,8 @@ interface AppContextType {
   authLoading: boolean;
   sessionExpired: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  register: (email: string, password: string, fullName: string, phone?: string, role?: UserRole, hospitalId?: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  loginAsDemo: (role: UserRole) => void;
   logout: () => void;
 
   // User & Role
@@ -74,6 +76,8 @@ interface AppContextType {
   addDiscoveredHospitals: (newHospitals: Hospital[]) => void;
   selectedHospital: Hospital | null;
   setSelectedHospital: (hospital: Hospital | null) => void;
+  setSelectedHospitalById: (hospitalId: string) => void;
+  ensureHospitalBeds: (hospital: Hospital) => Bed[];
   rankedHospitals: RankedHospital[];
 
   // Hospital Staff Management
@@ -247,6 +251,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       profile.experienceYears = backendUser.experience_years;
       profile.hospitalId = backendUser.hospital_id;
       profile.hospitalName = backendUser.hospital_name;
+      // staffToken is the same JWT — used by useStaffHospital for staff-only endpoints
+      profile.staffToken = token;
     } else if (role === 'admin') {
       profile.adminLevel = 'System Administrator';
     }
@@ -374,6 +380,39 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentAssessmentInput, setCurrentAssessmentInput] = useState<EmergencyAssessmentInput | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
+
+  const ensureHospitalBeds = useCallback((hospital: Hospital): Bed[] => {
+    if (hospital.bedList && hospital.bedList.length > 0) return hospital.bedList;
+    const total = hospital.beds?.total ?? hospital.totalBeds ?? 0;
+    if (total <= 0) return [];
+    const icuTotal = hospital.icu?.total ?? hospital.totalICUBeds ?? 0;
+    const emergencyTotal = hospital.emergencyRooms?.total ?? hospital.totalEmergencyBeds ?? 0;
+    const beds: Bed[] = Array.from({ length: total }, (_, index) => {
+      const wardType: Bed['wardType'] = index < icuTotal
+        ? 'ICU'
+        : index < icuTotal + emergencyTotal ? 'Emergency' : 'General';
+      return {
+        id: `${hospital.hospitalId || hospital.id}-bed-${index + 1}`,
+        hospitalId: hospital.hospitalId || hospital.id,
+        bedNumber: `${wardType.slice(0, 3).toUpperCase()}-${String(index + 1).padStart(3, '0')}`,
+        wardType,
+        status: 'Available',
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    const initialized = { ...hospital, bedList: beds, beds: { ...hospital.beds, total, available: total, occupied: 0, reserved: 0 } };
+    hospitalService.updateHospitalSync(initialized);
+    return beds;
+  }, []);
+
+  const setSelectedHospitalById = useCallback((hospitalId: string) => {
+    const hospital = hospitals.find(h => h.hospitalId === hospitalId || h.id === hospitalId);
+    if (!hospital) return;
+    const bedsForHospital = ensureHospitalBeds(hospital);
+    const selected = bedsForHospital === hospital.bedList ? hospital : { ...hospital, bedList: bedsForHospital };
+    setSelectedHospital(selected);
+    setBedsState(bedsForHospital);
+  }, [ensureHospitalBeds, hospitals]);
   const [activePreAlert, setActivePreAlert] = useState<HospitalPreAlert | null>(null);
   const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(null);
   const [myQueueToken, setMyQueueToken] = useState<QueuePatient | null>(null);
@@ -405,9 +444,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (hosp) {
       setDoctorsState(hosp.doctorList || []);
       setRoomsState(hosp.roomsList || []);
-      if (hosp.bedList && hosp.bedList.length > 0) {
-        setBedsState(hosp.bedList);
-      }
+      setBedsState(ensureHospitalBeds(hosp));
     }
   }, [selectedHospital, hospitals, currentUser.hospitalId]);
 
@@ -568,6 +605,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [hospitals, assessmentResult]);
 
   // ─── Authentication ──────────────────────────────────────────────────────
+  const loginAsDemo = (role: UserRole) => {
+    const demoProfiles: Record<UserRole, UserProfile> = {
+      patient: {
+        id: 'usr-demo-patient',
+        name: 'Rohan Verma',
+        role: 'patient',
+        email: 'patient@mediflow.ai',
+        phone: '+91 98765 43210',
+        avatarInitials: 'RV',
+        accountStatus: 'active',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        age: 34,
+        gender: 'Male',
+        bloodGroup: 'O+',
+        location: 'Koramangala, Bangalore'
+      },
+      hospital_staff: {
+        id: 'usr-demo-staff',
+        name: 'Dr. Priya Sharma',
+        role: 'hospital_staff',
+        email: 'staff@mediflow.ai',
+        phone: '+91 98765 43211',
+        avatarInitials: 'PS',
+        accountStatus: 'active',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        staffId: 'STF-BLR-001',
+        department: 'Emergency & Trauma Care',
+        experienceYears: 8,
+        hospitalId: hospitals[0]?.id || 'hosp-1',
+        hospitalName: hospitals[0]?.name || 'Manipal Hospital'
+      },
+      admin: {
+        id: 'usr-demo-admin',
+        name: 'System Administrator',
+        role: 'admin',
+        email: 'admin@mediflow.ai',
+        avatarInitials: 'AD',
+        accountStatus: 'active',
+        createdAt: new Date().toISOString(),
+        lastLogin: new Date().toISOString(),
+        adminLevel: 'Chief Medical Administrator'
+      }
+    };
+
+    const profile = demoProfiles[role];
+    setCurrentUser(profile);
+    setIsAuthenticated(true);
+    setSessionExpired(false);
+  };
+
   const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
     try {
       const response = await authLogin({ email, password });
@@ -583,7 +672,38 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       return { success: true, role: profile.role };
     } catch (err: any) {
+      // If network error and matches demo credentials, allow seamless offline demo access
+      const isNetworkErr = err?.code === 'NETWORK_ERROR' || err?.status === 0;
+      if (isNetworkErr) {
+        if (email.toLowerCase() === 'patient@mediflow.ai' && password === 'patient123') {
+          loginAsDemo('patient');
+          return { success: true, role: 'patient' };
+        }
+        if (email.toLowerCase() === 'staff@mediflow.ai' && password === 'staff123') {
+          loginAsDemo('hospital_staff');
+          return { success: true, role: 'hospital_staff' };
+        }
+        if (email.toLowerCase() === 'admin@mediflow.ai' && password === 'admin123') {
+          loginAsDemo('admin');
+          return { success: true, role: 'admin' };
+        }
+      }
       const message = err?.message || 'Login failed. Please check your credentials.';
+      return { success: false, error: message };
+    }
+  };
+
+  const register = async (email: string, password: string, fullName: string, phone?: string, role: UserRole = 'patient', hospitalId?: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
+    try {
+      const backendRole = role === 'hospital_staff' ? 'HOSPITAL_STAFF' : 'PATIENT';
+      await authRegister({ email, password, full_name: fullName, phone, role: backendRole, hospital_id: hospitalId });
+      const loginResult = await login(email, password);
+      if (loginResult.success) {
+        return { success: true, role: loginResult.role };
+      }
+      return { success: false, error: 'Account created. Please sign in.' };
+    } catch (err: any) {
+      const message = err?.message || 'Registration failed. Please try again.';
       return { success: false, error: message };
     }
   };
@@ -1084,7 +1204,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     // Get current bed list without re-randomizing or resetting other beds
-    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
+    const currentBeds = ensureHospitalBeds(hosp);
     
     // Modify ONLY the selected bed, preserving all other rooms/beds
     const newBeds = currentBeds.map(b => {
@@ -1140,7 +1260,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleBedStatus = (bedId: string) => {
     const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
     if (!hosp) return;
-    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
+    const currentBeds = ensureHospitalBeds(hosp);
     const targetBed = currentBeds.find(b => b.id === bedId);
     if (!targetBed) return;
 
@@ -1295,6 +1415,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         authLoading,
         sessionExpired,
         login,
+        register,
+        loginAsDemo,
         logout,
         currentUser,
         setUserRole,
@@ -1309,6 +1431,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addDiscoveredHospitals,
         selectedHospital,
         setSelectedHospital,
+        setSelectedHospitalById,
+        ensureHospitalBeds,
         rankedHospitals,
         currentAssessmentInput,
         assessmentResult,

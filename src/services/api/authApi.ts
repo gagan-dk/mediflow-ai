@@ -50,6 +50,8 @@ export interface RegisterPayload {
   password: string;
   full_name: string;
   phone?: string;
+  role?: 'PATIENT' | 'HOSPITAL_STAFF';
+  hospital_id?: string;
 }
 
 export type AuthError = ApiClientError;

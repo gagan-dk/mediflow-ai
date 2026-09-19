@@ -80,12 +80,15 @@ export const apiClient = {
         }
 
         const message =
+          errorData.error?.message ||
           errorData.detail?.message ||
           errorData.message ||
           errorData.detail ||
           response.statusText;
 
-        throw new ApiClientError(response.status, message, errorData.code, errorData);
+        const code = errorData.error?.code || errorData.code;
+
+        throw new ApiClientError(response.status, message, code, errorData);
       }
 
       const data = await response.json();
@@ -100,7 +103,7 @@ export const apiClient = {
       if (error instanceof TypeError && error.message === 'Failed to fetch') {
         throw new ApiClientError(
           0,
-          'Network error. Please check your connection.',
+          `Cannot connect to backend server at ${API_BASE_URL}. Ensure the backend service is running.`,
           'NETWORK_ERROR'
         );
       }

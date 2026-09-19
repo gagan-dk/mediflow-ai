@@ -14,7 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from app.api.deps import CurrentUser, Db
 from app.core.config import settings
 from app.core.security import create_access_token, hash_password, verify_password
-from app.models import User, UserRole
+from app.models import Hospital, HospitalStaff, User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserRead
 
 logger = logging.getLogger("mediflow.api.auth")
@@ -26,14 +26,26 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     "/register",
     response_model=UserRead,
     status_code=status.HTTP_201_CREATED,
-    summary="Register a patient account",
+    summary="Register a patient or hospital staff account",
 )
 def register(payload: RegisterRequest, db: Db) -> UserRead:
-    """Create a patient account.
-
-    Self-service registration only creates `PATIENT` accounts; staff and admin
-    roles are assigned by an administrator.
-    """
+    """Create a patient or staff account with a server-side assignment."""
+    if payload.role == UserRole.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator accounts must be created by an administrator.",
+        )
+    if payload.role == UserRole.HOSPITAL_STAFF and not payload.hospital_id:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Hospital selection is required for staff registration.",
+        )
+    hospital = db.get(Hospital, payload.hospital_id) if payload.hospital_id else None
+    if payload.role == UserRole.HOSPITAL_STAFF and hospital is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Selected hospital was not found.",
+        )
     email = payload.email.lower()
     existing = db.scalar(select(User).where(User.email == email))
     if existing is not None:
@@ -47,10 +59,13 @@ def register(payload: RegisterRequest, db: Db) -> UserRead:
         password_hash=hash_password(payload.password),
         full_name=payload.full_name,
         phone=payload.phone,
-        role=UserRole.PATIENT,
+        role=payload.role,
     )
     db.add(user)
     try:
+        db.flush()
+        if payload.role == UserRole.HOSPITAL_STAFF and hospital is not None:
+            db.add(HospitalStaff(user_id=user.id, hospital_id=hospital.id, staff_role="Hospital Staff"))
         db.commit()
     except IntegrityError:
         db.rollback()

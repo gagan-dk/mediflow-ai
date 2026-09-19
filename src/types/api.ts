@@ -273,6 +273,7 @@ export interface RoomRead {
 }
 
 export interface CreateRoomRequest {
+  hospitalId?: string;
   room_number: string;
   room_type: string;
   floor?: string;

@@ -69,7 +69,7 @@ def test_register_patient_success(client) -> None:
     assert "password" not in resp.text
 
 
-def test_register_rejects_role_assignment(client) -> None:
+def test_register_rejects_admin_role_assignment(client) -> None:
     resp = client.post(
         "/api/auth/register",
         json={
@@ -79,8 +79,33 @@ def test_register_rejects_role_assignment(client) -> None:
             "role": "ADMIN",
         },
     )
-    assert resp.status_code == 422
-    assert resp.json()["error"]["code"] == "validation_error"
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "forbidden"
+
+
+def test_register_hospital_staff_assigns_hospital_and_can_login(db, client) -> None:
+    hospital = _seed_hospital(db)
+    resp = client.post(
+        "/api/auth/register",
+        json={
+            "email": "new.staff@mediflow.ai",
+            "password": "securepass123",
+            "full_name": "New Staff Member",
+            "role": "HOSPITAL_STAFF",
+            "hospital_id": hospital.id,
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["role"] == "HOSPITAL_STAFF"
+
+    from sqlalchemy import select
+
+    assignment = db.scalar(select(HospitalStaff).where(HospitalStaff.hospital_id == hospital.id))
+    assert assignment is not None
+
+    login = _login(client, "new.staff@mediflow.ai", "securepass123")
+    assert login.status_code == 200
+    assert login.json()["user"]["role"] == "HOSPITAL_STAFF"
 
 
 def test_register_duplicate_email_returns_409(client) -> None:

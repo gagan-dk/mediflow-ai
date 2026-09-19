@@ -31,7 +31,7 @@ import { DoctorManagement } from '../components/DoctorManagement';
 import { RoomManagement } from '../components/RoomManagement';
 import { HospitalOperationalDataEditor } from '../components/HospitalOperationalDataEditor';
 import { useStaffHospital } from '../hooks/useStaffHospital';
-import { Doctor, DoctorSpecialization, DoctorStatus, DutyStatus, Room, RoomType, RoomStatus, Hospital as HospitalType } from '../types/hospital';
+import { Bed, Doctor, DoctorSpecialization, DoctorStatus, DutyStatus, Room, RoomType, RoomStatus, Hospital as HospitalType } from '../types/hospital';
 
 interface HospitalManagementPageProps {
   navigate: (path: string) => void;
@@ -42,6 +42,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     hospitals, 
     selectedHospital, 
     setSelectedHospital, 
+    setSelectedHospitalById,
     userLiveLocation, 
     detectUserLiveLocation,
     currentUser,
@@ -52,11 +53,17 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
     addRoomToHospital,
     updateRoomInHospital,
     addNotification
+    , beds,
+    toggleBedStatus,
+    updateBedStatus,
+    ensureHospitalBeds
   } = useApp();
 
    const [activeSection, setActiveSection] = useState<'selection' | 'profile' | 'doctors' | 'rooms' | 'beds' | 'icu' | 'emergency'>('selection');
    const [searchQuery, setSearchQuery] = useState('');
-   const [profileHospitalId, setProfileHospitalId] = useState<string | null>(null);
+  const [profileHospitalId, setProfileHospitalId] = useState<string | null>(null);
+  const [bedWardFilter, setBedWardFilter] = useState<'All' | Bed['wardType']>('All');
+  const [bedStatusFilter, setBedStatusFilter] = useState<'All' | Bed['status']>('All');
 
    const { 
      hospital: backendHospital,
@@ -78,7 +85,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    } = useStaffHospital(currentUser.staffToken || null);
 
    const selectedHospitalForProfile: HospitalType | null = profileHospitalId
-     ? backendHospital || getHospitalById(profileHospitalId)
+     ? getHospitalById(profileHospitalId) || (backendHospital?.hospitalId === profileHospitalId ? backendHospital : null)
      : null;
 
    const filteredHospitals = hospitals.filter(hospital =>
@@ -97,19 +104,11 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    }, [staffError, addNotification]);
 
    const handleSelectHospital = (hospital: HospitalType) => {
-     const staffHospitalId = currentUser.hospitalId;
-     if (staffHospitalId && hospital.hospitalId !== staffHospitalId && hospital.id !== staffHospitalId) {
-       addNotification({
-         title: 'Access Restricted',
-         message: `You can only manage your assigned hospital (${currentUser.hospitalName || staffHospitalId}).`,
-         type: 'system',
-       });
-       return;
-     }
      setSelectedHospital(hospital);
+    setSelectedHospitalById(hospital.hospitalId || hospital.id);
      setProfileHospitalId(hospital.hospitalId || hospital.id);
      setActiveSection('profile');
-     refreshHospital();
+     if (backendHospital?.hospitalId === (hospital.hospitalId || hospital.id)) refreshHospital();
    };
 
    const handleBackToSelection = () => {
@@ -120,9 +119,10 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
    const profileDoctors = backendDoctors.length > 0 ? backendDoctors : (selectedHospitalForProfile?.doctorList || []);
    const profileRooms = backendRooms.length > 0 ? backendRooms : (selectedHospitalForProfile?.roomsList || []);
    const activeHospitalId = selectedHospitalForProfile?.hospitalId || selectedHospitalForProfile?.id || '';
+  const canUseBackend = Boolean(currentUser.staffToken && backendHospital && backendHospital.hospitalId === activeHospitalId);
 
   const handleAddDoctor = async (doctor: Omit<Doctor, 'id'>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await addDoctorApi({
         name: doctor.name,
         specialization: doctor.specialization,
@@ -144,7 +144,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleUpdateDoctor = async (id: string, updates: Partial<Doctor>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await updateDoctorApi(id, updates);
       if (success) {
         addNotification({ title: 'Success', message: 'Doctor updated successfully', type: 'success' });
@@ -155,7 +155,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleRemoveDoctor = async (id: string) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await removeDoctorApi(id);
       if (success) {
         addNotification({ title: 'Success', message: 'Doctor removed successfully', type: 'success' });
@@ -166,7 +166,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleAddRoom = async (room: Omit<Room, 'id'>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await addRoomApi({
         roomNumber: room.roomNumber,
         type: room.type,
@@ -185,7 +185,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleUpdateRoom = async (id: string, updates: Partial<Room>) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await updateRoomApi(id, updates);
       if (success) {
         addNotification({ title: 'Success', message: 'Room updated successfully', type: 'success' });
@@ -196,7 +196,7 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
   };
 
   const handleRemoveRoom = async (id: string) => {
-    if (currentUser.staffToken && backendHospital) {
+    if (canUseBackend) {
       const success = await removeRoomApi(id);
       if (success) {
         addNotification({ title: 'Success', message: 'Room removed successfully', type: 'success' });
@@ -612,9 +612,61 @@ export const HospitalManagementPage: React.FC<HospitalManagementPageProps> = ({ 
                   Manage {activeSection === 'beds' ? 'Beds' : activeSection === 'icu' ? 'ICU Capacity' : 'Emergency Department'} for {selectedHospitalForProfile.name}
                 </h3>
               </div>
-              <HospitalOperationalDataEditor 
+              {activeSection === 'beds' && (() => {
+                const hospitalBeds = ensureHospitalBeds(selectedHospitalForProfile);
+                const filteredBeds = hospitalBeds.filter(bed =>
+                  (bedWardFilter === 'All' || bed.wardType === bedWardFilter) &&
+                  (bedStatusFilter === 'All' || bed.status === bedStatusFilter)
+                );
+                const availableCount = hospitalBeds.filter(bed => bed.status === 'Available').length;
+                const occupiedCount = hospitalBeds.filter(bed => bed.status === 'Occupied').length;
+                const statusClasses: Record<string, string> = {
+                  Available: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+                  Occupied: 'bg-red-50 border-red-200 text-red-700',
+                  Cleaning: 'bg-amber-50 border-amber-200 text-amber-700',
+                  Reserved: 'bg-sky-50 border-sky-200 text-sky-700',
+                };
+                return (
+                  <div className="mb-6 space-y-4">
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs text-slate-500">Total beds</div><div className="text-xl font-bold">{hospitalBeds.length}</div></div>
+                      <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3"><div className="text-xs text-emerald-700">Available</div><div className="text-xl font-bold text-emerald-700">{availableCount}</div></div>
+                      <div className="rounded-xl border border-red-200 bg-red-50 p-3"><div className="text-xs text-red-700">Occupied</div><div className="text-xl font-bold text-red-700">{occupiedCount}</div></div>
+                      <div className="rounded-xl border border-slate-200 bg-white p-3"><div className="text-xs text-slate-500">Showing</div><div className="text-xl font-bold">{filteredBeds.length}</div></div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {(['All', 'ICU', 'Emergency', 'General', 'Trauma', 'Cardiac'] as const).map(ward => (
+                        <button key={ward} onClick={() => setBedWardFilter(ward)} className={`rounded-lg border px-3 py-1.5 text-xs font-semibold ${bedWardFilter === ward ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-600'}`}>{ward}</button>
+                      ))}
+                      <select value={bedStatusFilter} onChange={event => setBedStatusFilter(event.target.value as typeof bedStatusFilter)} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600">
+                        {['All', 'Available', 'Occupied', 'Cleaning', 'Reserved'].map(status => <option key={status}>{status}</option>)}
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
+                      {filteredBeds.map(bed => (
+                        <button
+                          key={bed.id}
+                          onClick={() => {
+                            const nextStatus = bed.status === 'Available' ? 'Occupied' : bed.status === 'Occupied' ? 'Cleaning' : bed.status === 'Cleaning' ? 'Reserved' : 'Available';
+                            const patientName = nextStatus === 'Occupied' ? window.prompt('Patient name (optional)', bed.patientName || '') || undefined : undefined;
+                            updateBedStatus(bed.id, nextStatus, patientName);
+                          }}
+                          className={`min-h-20 rounded-xl border p-2 text-left transition hover:scale-[1.02] ${statusClasses[bed.status]}`}
+                          title="Click to cycle bed status"
+                        >
+                          <div className="text-xs font-bold">{bed.bedNumber}</div>
+                          <div className="mt-1 text-[10px] font-semibold">{bed.wardType}</div>
+                          <div className="mt-2 text-[10px]">{bed.status}</div>
+                          {bed.patientName && <div className="truncate text-[10px]">{bed.patientName}</div>}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+                <HospitalOperationalDataEditor
                 hospital={selectedHospitalForProfile} 
-                staffToken={currentUser.staffToken}
+                  staffToken={canUseBackend ? currentUser.staffToken : undefined}
                 onSuccess={refreshHospital}
               />
             </>

@@ -1,9 +1,10 @@
-﻿import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { PreAlertBanner } from './components/PreAlertBanner';
 import { ReroutingAlertModal } from './components/ReroutingAlertModal';
+import type { UserRole } from './types/user';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -25,8 +26,33 @@ const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
   const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
-  const navigate = (path: string) => {
-    setCurrentPath(path);
+  const roleHome: Record<string, string> = {
+    patient: '/',
+    hospital_staff: '/hospital',
+    admin: '/command-center',
+  };
+
+  const routeAccess: Record<string, string[]> = {
+    '/': ['patient', 'hospital_staff', 'admin'],
+    '/assessment': ['patient', 'hospital_staff', 'admin'],
+    '/assessment-result': ['patient', 'hospital_staff', 'admin'],
+    '/finder': ['patient', 'admin'],
+    '/queue': ['patient', 'hospital_staff', 'admin'],
+    '/command-center': ['hospital_staff', 'admin'],
+    '/ambulances': ['hospital_staff', 'admin'],
+    '/journey': ['patient'],
+    '/insights': ['admin'],
+    '/privacy': ['patient', 'hospital_staff', 'admin'],
+    '/hospital': ['hospital_staff'],
+    '/profile': ['patient', 'hospital_staff', 'admin'],
+    '/settings': ['patient', 'hospital_staff', 'admin'],
+  };
+
+  const navigate = (path: string, roleOverride?: UserRole) => {
+    const role = roleOverride || currentUser.role;
+    const allowed = routeAccess[path];
+    const finalPath = allowed && !allowed.includes(role) ? roleHome[role] || '/' : path;
+    setCurrentPath(finalPath);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -64,9 +90,17 @@ const AppContent: React.FC = () => {
   };
 
   const handleLoginSuccess = (role: string) => {
-    // All users go to home page after login, they can navigate from there
-    navigate('/');
+    navigate(roleHome[role] || '/', role as UserRole);
   };
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    if (currentUser.role === 'hospital_staff' && currentPath === '/') {
+      setCurrentPath('/hospital');
+    } else if (currentUser.role === 'admin' && currentPath === '/') {
+      setCurrentPath('/command-center');
+    }
+  }, [currentUser.role, currentPath, isAuthenticated]);
 
   // Gate: show loading while checking session
   if (authLoading) {

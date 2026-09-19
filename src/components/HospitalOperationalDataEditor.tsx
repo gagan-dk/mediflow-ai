@@ -134,8 +134,9 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
         updateHospitalCapabilities(hospital.hospitalId || hospital.id, facilities),
       ]);
 
+      const latestHospital = getHospitalById(hospital.hospitalId || hospital.id) || hospital;
       const latest = await updateHospital({
-        ...hospital,
+        ...latestHospital,
         operationalDataAvailable: true,
       });
 

@@ -27,7 +27,8 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
-  const { hospitals } = useApp();
+  const { hospitals, currentUser } = useApp();
+  const role = currentUser.role;
 
   const monitoredHospitals = hospitals.length;
   const totalICUBeds = hospitals.reduce((sum, h) => sum + (h.totalICUBeds ?? 0), 0);
@@ -36,6 +37,102 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
     ? (hospitals.reduce((sum, h) => sum + (h.estimatedWaitTimeMinutes ?? 0), 0) / hospitals.length).toFixed(1)
     : null;
   const hasOperationalData = hospitals.some(h => h.operationalDataAvailable === true);
+
+  const heroContent = {
+    patient: {
+      headline: (
+        <>
+          Get the Right Care. <br className="hidden sm:inline" />
+          <span className="bg-gradient-to-r from-brand-600 via-sky-600 to-teal-600 bg-clip-text text-transparent">
+            At the Right Hospital.
+          </span>{' '}
+          At the Right Time.
+        </>
+      ),
+      ctas: (
+        <>
+          <button
+            onClick={() => navigate('/assessment')}
+            className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-brand-500/25 transition transform active:scale-95"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>Start Emergency Assessment</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate('/finder')}
+            className="flex items-center gap-2 px-5 py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm shadow-xs transition"
+          >
+            <Hospital className="w-4 h-4 text-brand-600" />
+            <span>Find Nearby Hospitals</span>
+          </button>
+        </>
+      ),
+    },
+    hospital_staff: {
+      headline: (
+        <>
+          Coordinate Care. <br className="hidden sm:inline" />
+          <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 bg-clip-text text-transparent">
+            Control the Command Center.
+          </span>{' '}
+          Live.
+        </>
+      ),
+      ctas: (
+        <>
+          <button
+            onClick={() => navigate('/command-center')}
+            className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition transform active:scale-95"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Open Command Center</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate('/hospital')}
+            className="flex items-center gap-2 px-5 py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm shadow-xs transition"
+          >
+            <Hospital className="w-4 h-4 text-emerald-600" />
+            <span>Manage Hospital</span>
+          </button>
+        </>
+      ),
+    },
+    admin: {
+      headline: (
+        <>
+          Oversee the Network. <br className="hidden sm:inline" />
+          <span className="bg-gradient-to-r from-purple-600 via-indigo-600 to-sky-600 bg-clip-text text-transparent">
+            Direct Regional Capacity.
+          </span>{' '}
+          Anywhere.
+        </>
+      ),
+      ctas: (
+        <>
+          <button
+            onClick={() => navigate('/command-center')}
+            className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-purple-600 to-indigo-700 hover:from-purple-700 hover:to-indigo-800 text-white font-bold rounded-xl text-sm shadow-lg shadow-purple-500/25 transition transform active:scale-95"
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Open Command Center</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => navigate('/insights')}
+            className="flex items-center gap-2 px-5 py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm shadow-xs transition"
+          >
+            <Sparkles className="w-4 h-4 text-purple-600" />
+            <span>System Insights</span>
+          </button>
+        </>
+      ),
+    },
+  }[role] || {
+    headline: 'Get the Right Care. At the Right Hospital. At the Right Time.',
+    ctas: null,
+  };
 
   return (
     <div className="space-y-16 pb-12">
@@ -60,11 +157,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
           {/* Hero Headline & Subtitle */}
           <div className="text-center space-y-4 max-w-4xl mx-auto">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-              Get the Right Care. <br className="hidden sm:inline" />
-              <span className="bg-gradient-to-r from-brand-600 via-sky-600 to-teal-600 bg-clip-text text-transparent">
-                At the Right Hospital.
-              </span>{' '}
-              At the Right Time.
+              {heroContent.headline}
             </h1>
             <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               AI-assisted emergency prioritization and dynamic hospital coordination that routes patients to facilities with verified ICU, emergency bed capacity, and shortest travel ETA.
@@ -72,24 +165,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
 
             {/* CTA Buttons */}
             <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-              <button
-                onClick={() => navigate('/assessment')}
-                className="flex items-center gap-2 px-6 py-3.5 bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-brand-500/25 transition transform active:scale-95"
-              >
-                <ShieldAlert className="w-4 h-4" />
-                <span>Start Emergency Assessment</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-
-              <button
-                onClick={() => navigate('/finder')}
-                className="flex items-center gap-2 px-5 py-3.5 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-sm shadow-xs transition"
-              >
-                <Hospital className="w-4 h-4 text-brand-600" />
-                <span>Find Nearby Hospitals</span>
-              </button>
-
-
+              {heroContent.ctas}
             </div>
           </div>
 
@@ -211,10 +287,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ navigate }) => {
                         </td>
                         <td className="py-3 text-right">
                           <button
-                            onClick={() => navigate('/finder')}
+                            onClick={() => navigate(role === 'patient' ? '/finder' : '/command-center')}
                             className="px-3 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 font-semibold rounded-lg transition"
                           >
-                            Route
+                            {role === 'patient' ? 'Route' : 'View'}
                           </button>
                         </td>
                       </tr>

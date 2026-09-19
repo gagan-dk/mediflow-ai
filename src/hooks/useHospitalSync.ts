@@ -39,13 +39,13 @@ export function useHospitalSync(hospitalId: string | null, options?: { autoRefre
 
     try {
       const result = await getHospitalByIdApi(hospitalId);
-      const backendHospital = result.hospital;
+      const backendHospital = result;
 
       if (backendHospital) {
         const stampedHospital = {
           ...backendHospital,
-          lastUpdated: backendHospital.lastUpdated || new Date().toISOString(),
-        };
+          lastUpdated: backendHospital.updated_at || new Date().toISOString(),
+        } as unknown as Hospital;
         
         await hospitalService.updateHospital(stampedHospital);
         setHospital(stampedHospital);
