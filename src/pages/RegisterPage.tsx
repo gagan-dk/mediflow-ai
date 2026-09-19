@@ -49,7 +49,7 @@ export const RegisterPage: React.FC<RegisterPageProps> = ({ onRegisterSuccess, o
     setIsLoading(true);
     setError('');
 
-    const result = await register({ email: trimmedEmail, password, full_name: trimmedName });
+    const result = await register({ email: trimmedEmail, password, full_name: trimmedName }, 'patient');
     setIsLoading(false);
 
     if (result.success) {

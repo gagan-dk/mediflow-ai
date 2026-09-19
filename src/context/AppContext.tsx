@@ -16,6 +16,7 @@ import {
 import { mapService } from '../services/map/mapService';
 import { hospitalDiscoveryService } from '../services/hospitalDiscoveryService';
 import { hospitalService } from '../services/hospitalService';
+import { locationService } from '../services/locationService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
@@ -53,8 +54,8 @@ interface AppContextType {
   isAuthenticated: boolean;
   authLoading: boolean;
   sessionExpired: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
-  register: (payload: any) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  login: (email: string, password: string, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  register: (payload: any, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   logout: () => void;
 
   // User & Role
@@ -380,94 +381,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log('[Config] LocationIQ configured:', isConfigured('locationiq'));
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        try {
-          const geoInfo = await reverseGeocodeCoords(latitude, longitude);
-          
-          setUserLiveLocation({
-            lat: latitude,
-            lng: longitude,
-            address: geoInfo.address,
-            city: geoInfo.city,
-            isLiveGps: true,
-            accuracyMeters: Math.round(accuracy)
-          });
+    try {
+      let latitude: number;
+      let longitude: number;
+      let accuracy: number;
+      let isSimulated = false;
 
-          console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
-          console.log('[GPS] Reverse geocoded address:', geoInfo.address);
-
-          let nearbyHospitals: Hospital[] = [];
-          let discoverySource: string = 'none';
-          let providerMessage: string | undefined;
-          try {
-            const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
-              minHospitals: 5,
-              initialRadiusKm: 10,
-              maxRadiusKm: 30,
-            });
-            nearbyHospitals = discovery.hospitals;
-            discoverySource = discovery.source;
-            providerMessage = discovery.providerMessage;
-            console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km via', discoverySource);
-            if (providerMessage) {
-              console.log('[Hospitals] Provider message:', providerMessage);
-            }
-          } catch (discoveryError) {
-            console.warn('[Hospitals] Discovery error:', discoveryError);
-          }
-
-          if (nearbyHospitals.length > 0) {
-            const merged = await hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
-            setHospitals(merged);
-            setSelectedHospital(merged[0]);
-            addNotification({
-              title: '📍 Live GPS Location Acquired',
-              message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
-              type: 'system'
-            });
-          } else {
-            const status = mapService.getStatus();
-            let message = 'No hospitals found in the selected radius.';
-            if (providerMessage) {
-              message = providerMessage;
-            } else if (status.message) {
-              message = status.message;
-            }
-            addNotification({
-              title: '📍 Location Acquired — No Hospitals Found',
-              message: `${message} Try searching by hospital name.`,
-              type: 'system'
-            });
-          }
-
-        } catch (e) {
-          console.error('Error fetching real hospitals:', e);
-          addNotification({
-            title: '⚠️ Location Error',
-            message: 'Failed to fetch hospital data. Please try again.',
-            type: 'system'
-          });
-        } finally {
-          setIsLocatingUser(false);
-        }
-      },
-      (err) => {
+      try {
+        const coords = await locationService.requestLocation();
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+        accuracy = coords.accuracy;
+      } catch (err: any) {
         console.warn('GPS location permission denied or timed out:', err.message);
-        setIsLocatingUser(false);
+        latitude = 12.9716; // Bangalore Center
+        longitude = 77.5946;
+        accuracy = 100;
+        isSimulated = true;
+        
         addNotification({
-          title: '⚠️ Location Permission Denied',
-          message: 'Please enable location access to find nearby hospitals.',
+          title: '⚠️ Using Simulated Location',
+          message: 'GPS access unavailable. Falling back to Hackathon Demo Location (Bengaluru).',
           type: 'system'
         });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
       }
-    );
+
+      try {
+        const geoInfo = await reverseGeocodeCoords(latitude, longitude);
+        
+        setUserLiveLocation({
+          lat: latitude,
+          lng: longitude,
+          address: geoInfo.address,
+          city: geoInfo.city,
+          isLiveGps: !isSimulated,
+          accuracyMeters: Math.round(accuracy)
+        });
+
+        console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
+        console.log('[GPS] Reverse geocoded address:', geoInfo.address);
+
+        let nearbyHospitals: Hospital[] = [];
+        let discoverySource: string = 'none';
+        let providerMessage: string | undefined;
+        try {
+          const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
+            minHospitals: 5,
+            initialRadiusKm: 10,
+            maxRadiusKm: 30,
+          });
+          nearbyHospitals = discovery.hospitals;
+          discoverySource = discovery.source;
+          providerMessage = discovery.providerMessage;
+          console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km via', discoverySource);
+          if (providerMessage) {
+            console.log('[Hospitals] Provider message:', providerMessage);
+          }
+        } catch (discoveryError) {
+          console.warn('[Hospitals] Discovery error:', discoveryError);
+        }
+
+        if (nearbyHospitals.length > 0) {
+          const merged = await hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
+          setHospitals(merged);
+          setSelectedHospital(merged[0]);
+          addNotification({
+            title: '📍 Live GPS Location Acquired',
+            message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
+            type: 'system'
+          });
+        } else {
+          const status = mapService.getStatus();
+          let message = 'No hospitals found in the selected radius.';
+          if (providerMessage) {
+            message = providerMessage;
+          } else if (status.message) {
+            message = status.message;
+          }
+          addNotification({
+            title: '📍 Location Acquired — No Hospitals Found',
+            message: `${message} Try searching by hospital name.`,
+            type: 'system'
+          });
+        }
+
+      } catch (e) {
+        console.error('Error fetching real hospitals:', e);
+        addNotification({
+          title: '⚠️ Location Error',
+          message: 'Failed to fetch hospital data. Please try again.',
+          type: 'system'
+        });
+      }
+    } catch (err: any) {
+      console.warn('GPS location permission denied or timed out:', err.message);
+      addNotification({
+        title: '⚠️ Location Permission Denied',
+        message: 'Please enable location access to find nearby hospitals.',
+        type: 'system'
+      });
+    } finally {
+      setIsLocatingUser(false);
+    }
   };
 
   // Attempt live GPS auto-detect immediately on app load with High Accuracy
@@ -484,12 +499,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [hospitals, assessmentResult]);
 
   // ─── Authentication ──────────────────────────────────────────────────────
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
-    return await authLogin(email, password);
+  const login = async (email: string, password: string, selectedRole?: UserRole) => {
+    return await authLogin(email, password, selectedRole);
   };
 
-  const register = async (payload: any): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
-    return await authRegister(payload);
+  const register = async (payload: any, selectedRole?: UserRole) => {
+    return await authRegister(payload, selectedRole);
   };
 
   const logout = async () => {

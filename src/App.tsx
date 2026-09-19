@@ -46,29 +46,57 @@ const AppContent: React.FC = () => {
       case '/queue':
         return <LiveQueuePage navigate={navigate} />;
       case '/command-center':
+        if (currentUser?.role !== 'hospital_staff' && currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <HospitalCommandCenterPage />;
       case '/ambulances':
         return <EmergencyTransportPage navigate={navigate} />;
       case '/journey':
         return <PatientJourneyPage navigate={navigate} />;
       case '/insights':
+        if (currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <SystemInsightsPage navigate={navigate} />;
       case '/privacy':
         return <PrivacySecurityPage />;
       case '/hospital':
+        if (currentUser?.role !== 'hospital_staff' && currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <HospitalManagementPage navigate={navigate} />;
       case '/profile':
         return <ProfilePage />;
       case '/settings':
         return <SettingsPage />;
+      case '/admin':
+        if (currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
+        return <SystemInsightsPage navigate={navigate} />; // Placeholder for Admin Dashboard
       default:
         return <LandingPage navigate={navigate} />;
     }
   };
 
   const handleLoginSuccess = (role: string) => {
-    // All users go to home page after login, they can navigate from there
-    navigate('/');
+    switch (role) {
+      case 'hospital_staff':
+        navigate('/hospital');
+        break;
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'patient':
+      default:
+        navigate('/');
+        break;
+    }
   };
 
   // Gate: show loading while checking session
