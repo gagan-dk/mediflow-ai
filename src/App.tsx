@@ -1,10 +1,10 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { PreAlertBanner } from './components/PreAlertBanner';
 import { ReroutingAlertModal } from './components/ReroutingAlertModal';
-import type { UserRole } from './types/user';
 
 // Pages
 import { LandingPage } from './pages/LandingPage';
@@ -18,41 +18,19 @@ import { PatientJourneyPage } from './pages/PatientJourneyPage';
 import { SystemInsightsPage } from './pages/SystemInsightsPage';
 import { PrivacySecurityPage } from './pages/PrivacySecurityPage';
 import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
 import { HospitalManagementPage } from './pages/HospitalManagementPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SettingsPage } from './pages/SettingsPage';
 
 const AppContent: React.FC = () => {
   const [currentPath, setCurrentPath] = useState<string>('/');
+  const [showRegister, setShowRegister] = useState<boolean>(false);
+  const [registrationRole, setRegistrationRole] = useState<'patient' | 'hospital_staff'>('patient');
   const { isAuthenticated, authLoading, sessionExpired, currentUser, login } = useApp();
 
-  const roleHome: Record<string, string> = {
-    patient: '/',
-    hospital_staff: '/hospital',
-    admin: '/command-center',
-  };
-
-  const routeAccess: Record<string, string[]> = {
-    '/': ['patient', 'hospital_staff', 'admin'],
-    '/assessment': ['patient', 'hospital_staff', 'admin'],
-    '/assessment-result': ['patient', 'hospital_staff', 'admin'],
-    '/finder': ['patient', 'admin'],
-    '/queue': ['patient', 'hospital_staff', 'admin'],
-    '/command-center': ['hospital_staff', 'admin'],
-    '/ambulances': ['hospital_staff', 'admin'],
-    '/journey': ['patient'],
-    '/insights': ['admin'],
-    '/privacy': ['patient', 'hospital_staff', 'admin'],
-    '/hospital': ['hospital_staff'],
-    '/profile': ['patient', 'hospital_staff', 'admin'],
-    '/settings': ['patient', 'hospital_staff', 'admin'],
-  };
-
-  const navigate = (path: string, roleOverride?: UserRole) => {
-    const role = roleOverride || currentUser.role;
-    const allowed = routeAccess[path];
-    const finalPath = allowed && !allowed.includes(role) ? roleHome[role] || '/' : path;
-    setCurrentPath(finalPath);
+  const navigate = (path: string) => {
+    setCurrentPath(path);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -69,38 +47,65 @@ const AppContent: React.FC = () => {
       case '/queue':
         return <LiveQueuePage navigate={navigate} />;
       case '/command-center':
+        if (currentUser?.role !== 'hospital_staff' && currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <HospitalCommandCenterPage />;
       case '/ambulances':
         return <EmergencyTransportPage navigate={navigate} />;
       case '/journey':
         return <PatientJourneyPage navigate={navigate} />;
       case '/insights':
+        if (currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <SystemInsightsPage navigate={navigate} />;
       case '/privacy':
         return <PrivacySecurityPage />;
       case '/hospital':
+        if (currentUser?.role !== 'hospital_staff' && currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
         return <HospitalManagementPage navigate={navigate} />;
       case '/profile':
         return <ProfilePage />;
       case '/settings':
         return <SettingsPage />;
+      case '/admin':
+        if (currentUser?.role !== 'admin') {
+          navigate('/');
+          return null;
+        }
+        return <SystemInsightsPage navigate={navigate} />; // Placeholder for Admin Dashboard
       default:
         return <LandingPage navigate={navigate} />;
     }
   };
 
   const handleLoginSuccess = (role: string) => {
-    navigate(roleHome[role] || '/', role as UserRole);
+    switch (role) {
+      case 'hospital_staff':
+        navigate('/');
+        break;
+      case 'admin':
+        navigate('/admin');
+        break;
+      case 'patient':
+      default:
+        navigate('/');
+        break;
+    }
   };
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (currentUser.role === 'hospital_staff' && currentPath === '/') {
-      setCurrentPath('/hospital');
-    } else if (currentUser.role === 'admin' && currentPath === '/') {
-      setCurrentPath('/command-center');
+    if (currentUser.role === 'admin' && currentPath === '/') {
+      setCurrentPath('/admin');
     }
-  }, [currentUser.role, currentPath, isAuthenticated]);
+  }, [currentPath, currentUser.role, isAuthenticated]);
 
   // Gate: show loading while checking session
   if (authLoading) {
@@ -116,7 +121,10 @@ const AppContent: React.FC = () => {
 
   // Gate: show login page if not authenticated
   if (!isAuthenticated) {
-    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} />;
+    if (showRegister) {
+      return <RegisterPage registrationRole={registrationRole} onRegisterSuccess={handleLoginSuccess} onSwitchToLogin={() => setShowRegister(false)} />;
+    }
+    return <LoginPage onLoginSuccess={handleLoginSuccess} sessionExpired={sessionExpired} onSwitchToRegister={(role) => { setRegistrationRole(role === 'hospital_staff' ? 'hospital_staff' : 'patient'); setShowRegister(true); }} />;
   }
 
   return (
@@ -143,9 +151,11 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 };
 

@@ -316,9 +316,9 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
       
       if (query) {
         const matchesSearch = 
-          h.name.toLowerCase().includes(query) ||
-          h.address.toLowerCase().includes(query) ||
-          h.specialties.some((s: string) => s.toLowerCase().includes(query)) ||
+          h.name?.toLowerCase().includes(query) ||
+          h.address?.toLowerCase().includes(query) ||
+          (h.specialties || []).some((s: string) => s?.toLowerCase().includes(query)) ||
           Boolean(h.isDirectSearchMatch);
         if (!matchesSearch) return false;
         if (filterType === 'icu') return h.availableICUBeds > 0;
@@ -343,8 +343,8 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
     const query = searchQuery.trim().toLowerCase();
     if (query) {
       return [...filteredHospitals].sort((a, b) => {
-        const aName = a.hospital.name.toLowerCase();
-        const bName = b.hospital.name.toLowerCase();
+        const aName = a.hospital.name?.toLowerCase() || '';
+        const bName = b.hospital.name?.toLowerCase() || '';
         const aDirect = a.hospital.isDirectSearchMatch || aName.includes(query) ? 0 : 1;
         const bDirect = b.hospital.isDirectSearchMatch || bName.includes(query) ? 0 : 1;
         if (aDirect !== bDirect) return aDirect - bDirect;
@@ -397,38 +397,43 @@ export const HospitalFinderPage: React.FC<HospitalFinderPageProps> = ({ navigate
   };
 
   const testGeoapify = async () => {
+    if (!hasLiveLocation) throw new Error("Live location not available");
     const { geoapifyProvider } = await import('../services/map/geoapifyProvider');
-    const lat = userLiveLocation.lat || 12.9124;
-    const lon = userLiveLocation.lng || 77.5413;
+    const lat = userLiveLocation.lat;
+    const lon = userLiveLocation.lng;
     const results = await geoapifyProvider.searchNearbyHospitals({ lat, lon, radiusMeters: 10000 });
     return `Found ${results.length} hospitals (Geoapify Places)`;
   };
 
   const testLocationIQ = async () => {
+    if (!hasLiveLocation) throw new Error("Live location not available");
     const { locationIqProvider } = await import('../services/map/locationIqProvider');
-    const lat = userLiveLocation.lat || 12.9124;
-    const lon = userLiveLocation.lng || 77.5413;
+    const lat = userLiveLocation.lat;
+    const lon = userLiveLocation.lng;
     const results = await locationIqProvider.searchNearbyHospitals({ lat, lon, radiusMeters: 10000 });
     return `Found ${results.length} hospitals (LocationIQ Nearby)`;
   };
 
   const testNearby = async () => {
-    const lat = userLiveLocation.lat || 12.9124;
-    const lon = userLiveLocation.lng || 77.5413;
+    if (!hasLiveLocation) throw new Error("Live location not available");
+    const lat = userLiveLocation.lat;
+    const lon = userLiveLocation.lng;
     const results = await mapService.searchNearbyHospitals(lat, lon, 10000);
     return `Found ${results.hospitals.length} hospitals via ${results.provider}`;
   };
 
   const testSearch = async () => {
-    const lat = userLiveLocation.lat || 12.9124;
-    const lon = userLiveLocation.lng || 77.5413;
+    if (!hasLiveLocation) throw new Error("Live location not available");
+    const lat = userLiveLocation.lat;
+    const lon = userLiveLocation.lng;
     const results = await mapService.searchPlaces('hospital', lat, lon);
     return `Found ${results.places.length} places via ${results.provider}`;
   };
 
   const testRouting = async () => {
-    const lat = userLiveLocation.lat || 12.9124;
-    const lon = userLiveLocation.lng || 77.5413;
+    if (!hasLiveLocation) throw new Error("Live location not available");
+    const lat = userLiveLocation.lat;
+    const lon = userLiveLocation.lng;
     const result = await mapService.getRoute(lat, lon, lat + 0.005, lon + 0.01);
     return result ? `${result.distanceKm} km, ${result.durationMinutes} min` : 'No route returned';
   };

@@ -27,6 +27,9 @@ class HospitalDiscoveryService {
     userLng: number,
     options: HospitalDiscoveryOptions = {}
   ): Promise<HospitalDiscoveryResult> {
+    if (!userLat || !userLng || (userLat === 0 && userLng === 0)) {
+      throw new Error("Invalid coordinates for hospital discovery");
+    }
     const {
       minHospitals = 5,
       maxRadiusKm = 30,

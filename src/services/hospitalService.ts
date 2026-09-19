@@ -81,7 +81,7 @@ class HospitalService {
   async getHospitals(lat?: number, lng?: number): Promise<Hospital[]> {
     try {
       const result = await getHospitalsApi({ lat, lng, radius: 30000 });
-      return result.items;
+      return (result.items as Hospital[]) || [];
     } catch (error) {
       console.warn('[HospitalService] API fetch failed, using localStorage:', error);
       return loadHospitalsFromStorage();
@@ -91,7 +91,19 @@ class HospitalService {
   async getHospitalById(hospitalId: string): Promise<Hospital | null> {
     try {
       const result = await getHospitalByIdApi(hospitalId);
-      return result as unknown as Hospital;
+      if (!result) return null;
+      const cached = this.getHospitalByIdSync(hospitalId);
+      if (cached) {
+        return {
+          ...cached,
+          name: result.name || cached.name,
+          address: result.address || cached.address,
+          phone: result.phone || cached.phone,
+          emergencyAvailable: result.emergency_available ?? cached.emergencyAvailable,
+          lastUpdated: result.updated_at || cached.lastUpdated,
+        };
+      }
+      return null;
     } catch (error) {
       console.warn('[HospitalService] API fetch by ID failed, using localStorage:', error);
       const all = loadHospitalsFromStorage();
@@ -118,26 +130,17 @@ class HospitalService {
     const existing = loadHospitalsFromStorage();
     const merged: Hospital[] = [...existing];
     for (const nh of discovered) {
-      const existingCoordinates = merged.map(h => ({
-        hospital: h,
-        latitude: h.coordinates?.lat ?? (h as Hospital & { latitude?: number }).latitude,
-        longitude: h.coordinates?.lng ?? (h as Hospital & { longitude?: number }).longitude,
-      }));
-      const existingIdx = merged.findIndex(h =>
-        h.id === nh.id ||
-        h.hospitalId === nh.hospitalId ||
-        (() => {
-          const current = existingCoordinates.find(item => item.hospital === h);
-          const discoveredLatitude = nh.coordinates?.lat;
-          const discoveredLongitude = nh.coordinates?.lng;
-          return typeof current?.latitude === 'number' &&
-            typeof current.longitude === 'number' &&
-            typeof discoveredLatitude === 'number' &&
-            typeof discoveredLongitude === 'number' &&
-            Math.abs(current.latitude - discoveredLatitude) < 0.003 &&
-            Math.abs(current.longitude - discoveredLongitude) < 0.003;
-        })()
-      );
+      const existingIdx = merged.findIndex(h => {
+        if (h.id === nh.id || h.hospitalId === nh.hospitalId) return true;
+        const hCoordinates = h.coordinates;
+        const nhCoordinates = nh.coordinates;
+        return Boolean(
+          hCoordinates &&
+          nhCoordinates &&
+          Math.abs(hCoordinates.lat - nhCoordinates.lat) < 0.003 &&
+          Math.abs(hCoordinates.lng - nhCoordinates.lng) < 0.003
+        );
+      });
       if (existingIdx >= 0) {
         merged[existingIdx] = { ...merged[existingIdx], ...nh };
       } else {
@@ -152,14 +155,26 @@ class HospitalService {
   async updateHospital(hospital: Hospital): Promise<Hospital> {
     const stamped: Hospital = { ...hospital, lastUpdated: new Date().toISOString(), updatedBy: 'hospital_staff', configComplete: true };
     try {
-      const result = await updateHospitalApi(hospital.id, stamped, '');
+      const result = await updateHospitalApi(hospital.id, {
+        name: stamped.name,
+        address: stamped.address,
+        phone: stamped.phone,
+        emergency_available: stamped.emergencyAvailable,
+      }, '');
       const all = loadHospitalsFromStorage();
       const idx = all.findIndex(h => h.hospitalId === hospital.hospitalId || h.id === hospital.id);
-      const updatedHospital = result.hospital as unknown as Hospital;
-      if (idx >= 0) all[idx] = updatedHospital; else all.push(updatedHospital);
+      const merged: Hospital = {
+        ...stamped,
+        name: result?.hospital?.name || stamped.name,
+        address: result?.hospital?.address || stamped.address,
+        phone: result?.hospital?.phone || stamped.phone,
+        emergencyAvailable: result?.hospital?.emergency_available ?? stamped.emergencyAvailable,
+        lastUpdated: result?.hospital?.updated_at || stamped.lastUpdated,
+      };
+      if (idx >= 0) all[idx] = merged; else all.push(merged);
       saveHospitalsToStorage(all);
       window.dispatchEvent(new CustomEvent('mediflow:hospitals-changed', { detail: hospital.id }));
-      return updatedHospital;
+      return merged;
     } catch (error) {
       console.warn('[HospitalService] API update failed, using localStorage fallback:', error);
       this.updateHospitalSync(stamped);
@@ -185,10 +200,10 @@ class HospitalService {
     try {
       await createDoctor({
         name: record.name,
-        specialty: record.specialization,
-        email: record.email,
+        specialty: record.specialization || (record as any).specialty || 'General',
         phone: record.phone,
-        status: record.status === 'Available' ? 'AVAILABLE' : record.status === 'Busy' ? 'BUSY' : record.status === 'Unavailable' ? 'UNAVAILABLE' : 'OFF_DUTY',
+        email: record.email,
+        status: (record.status ? (record.status.toUpperCase().replace(/\s+/g, '_') as any) : 'AVAILABLE'),
       }, '');
       await this.updateHospital({ ...(hospital as Hospital), doctorList: list });
     } catch (error) {
@@ -206,12 +221,13 @@ class HospitalService {
     if (idx < 0) return null;
     list[idx] = { ...list[idx], ...updates, hospitalId, updatedAt: new Date().toISOString() };
     try {
-      await updateDoctorApi(doctorId, {
-        name: updates.name,
-        specialty: updates.specialization,
-        email: updates.email,
-        phone: updates.phone,
-      }, '');
+      const apiUpdates: any = {};
+      if (updates.name) apiUpdates.name = updates.name;
+      if (updates.specialization) apiUpdates.specialty = updates.specialization;
+      if (updates.phone !== undefined) apiUpdates.phone = updates.phone;
+      if (updates.email !== undefined) apiUpdates.email = updates.email;
+      if (updates.status) apiUpdates.status = updates.status.toUpperCase().replace(/\s+/g, '_');
+      await updateDoctorApi(doctorId, apiUpdates, '');
       await this.updateHospital({ ...hospital, doctorList: list });
     } catch (error) {
       this.updateHospitalSync({ ...hospital, doctorList: list });
@@ -242,11 +258,10 @@ class HospitalService {
     list.push(record);
     try {
       await createRoom({
-        hospitalId,
-        room_number: record.roomNumber,
-        room_type: record.type,
+        room_number: record.roomNumber || record.id,
+        room_type: record.type || 'General Ward',
         floor: record.floor,
-        status: record.status === 'Available' ? 'AVAILABLE' : record.status === 'Occupied' ? 'OCCUPIED' : record.status === 'Reserved' ? 'RESERVED' : 'MAINTENANCE',
+        status: (record.status ? (record.status.toUpperCase() === 'CLEANING' ? 'MAINTENANCE' : record.status.toUpperCase()) : 'AVAILABLE') as any,
       }, '');
       await this.updateHospital({ ...(hospital as Hospital), roomsList: list });
     } catch (error) {
@@ -264,12 +279,12 @@ class HospitalService {
     if (idx < 0) return null;
     list[idx] = { ...list[idx], ...updates, hospitalId, lastUpdated: new Date().toISOString() };
     try {
-      await updateRoomApi(hospitalId, roomId, {
-        room_number: updates.roomNumber,
-        room_type: updates.type,
-        floor: updates.floor,
-        status: updates.status === 'Available' ? 'AVAILABLE' : updates.status === 'Occupied' ? 'OCCUPIED' : updates.status === 'Reserved' ? 'RESERVED' : 'MAINTENANCE',
-      }, '');
+      const apiUpdates: any = {};
+      if (updates.roomNumber) apiUpdates.room_number = updates.roomNumber;
+      if (updates.type) apiUpdates.room_type = updates.type;
+      if (updates.floor !== undefined) apiUpdates.floor = updates.floor;
+      if (updates.status) apiUpdates.status = updates.status.toUpperCase() === 'CLEANING' ? 'MAINTENANCE' : updates.status.toUpperCase();
+      await updateRoomApi(roomId, apiUpdates, '');
       await this.updateHospital({ ...hospital, roomsList: list });
     } catch (error) {
       this.updateHospitalSync({ ...hospital, roomsList: list });
@@ -283,7 +298,7 @@ class HospitalService {
     if (!hospital) return;
     const list = (hospital.roomsList || []).filter(r => r.id !== roomId);
     try {
-      await deleteRoomApi(hospitalId, roomId, '');
+      await deleteRoomApi(roomId, '');
       await this.updateHospital({ ...hospital, roomsList: list });
     } catch (error) {
       this.updateHospitalSync({ ...hospital, roomsList: list });

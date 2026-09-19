@@ -16,10 +16,11 @@ import {
 import { mapService } from '../services/map/mapService';
 import { hospitalDiscoveryService } from '../services/hospitalDiscoveryService';
 import { hospitalService } from '../services/hospitalService';
+import { locationService } from '../services/locationService';
 import { soundFX } from '../services/soundEffects';
 import { SystemNotification } from '../types/notification';
 import { UserRole, UserProfile } from '../types/user';
-import { authLogin, authRegister, authGetCurrentUser, type AuthUser } from '../services/api/authApi';
+import { useAuth } from './AuthContext';
 import { apiClient } from '../services/api/apiClient';
 import {
   createEmergencyCase,
@@ -53,9 +54,8 @@ interface AppContextType {
   isAuthenticated: boolean;
   authLoading: boolean;
   sessionExpired: boolean;
-  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
-  register: (email: string, password: string, fullName: string, phone?: string, role?: UserRole, hospitalId?: string) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
-  loginAsDemo: (role: UserRole) => void;
+  login: (email: string, password: string, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
+  register: (payload: any, selectedRole?: UserRole) => Promise<{ success: boolean; error?: string; role?: UserRole }>;
   logout: () => void;
 
   // User & Role
@@ -76,8 +76,6 @@ interface AppContextType {
   addDiscoveredHospitals: (newHospitals: Hospital[]) => void;
   selectedHospital: Hospital | null;
   setSelectedHospital: (hospital: Hospital | null) => void;
-  setSelectedHospitalById: (hospitalId: string) => void;
-  ensureHospitalBeds: (hospital: Hospital) => Bed[];
   rankedHospitals: RankedHospital[];
 
   // Hospital Staff Management
@@ -170,13 +168,15 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Authentication state
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [authLoading, setAuthLoading] = useState<boolean>(true);
-  const [sessionExpired, setSessionExpired] = useState<boolean>(false);
+  const { user, profile, loading: authLoading, login: authLogin, register: authRegister, logout: authLogout } = useAuth();
+  
+  // Local profile override for demo/UI changes (e.g., updateProfile) without hitting backend
+  const [localProfileOverride, setLocalProfileOverride] = useState<UserProfile | null>(null);
 
-  // Role & User — starts as guest; restored from backend on mount
-  const [currentUser, setCurrentUser] = useState<UserProfile>({
+  const isAuthenticated = !!user;
+  const sessionExpired = false;
+
+  const baseCurrentUser = profile || {
     id: 'usr-guest',
     name: 'Guest',
     role: 'patient',
@@ -184,7 +184,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     accountStatus: 'active',
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString(),
-  });
+  };
+
+  const currentUser = localProfileOverride || baseCurrentUser;
 
   // Theme preference (light/dark), applied to <html> root
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
@@ -200,7 +202,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       root.classList.remove('dark');
     }
     localStorage.setItem('mediflow-theme', theme);
-    setCurrentUser(prev => ({ ...prev, theme }));
   }, [theme]);
 
   const setTheme = (next: 'light' | 'dark') => {
@@ -208,97 +209,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playChime();
   };
 
-  // ─── Role mapping: backend uppercase → frontend lowercase ──────────────────
-  const mapBackendRole = (backendRole: string): UserRole => {
-    switch (backendRole) {
-      case 'PATIENT': return 'patient';
-      case 'HOSPITAL_STAFF': return 'hospital_staff';
-      case 'ADMIN': return 'admin';
-      default: return 'patient';
-    }
-  };
-
-  // ─── Map backend user response to frontend UserProfile ─────────────────────
-  const mapUserFromBackend = (backendUser: AuthUser, token: string, expiresIn: number): UserProfile => {
-    const role = mapBackendRole(backendUser.role);
-    const profile: UserProfile = {
-      id: backendUser.id,
-      name: backendUser.full_name,
-      role,
-      email: backendUser.email,
-      phone: backendUser.phone || undefined,
-      avatarInitials: backendUser.full_name
-        .split(' ')
-        .map(w => w[0])
-        .join('')
-        .slice(0, 2)
-        .toUpperCase(),
-      accessToken: token,
-      tokenExpiresAt: Date.now() + expiresIn * 1000,
-      accountStatus: 'active',
-      createdAt: backendUser.created_at,
-      lastLogin: new Date().toISOString(),
-    };
-
-    if (role === 'patient') {
-      profile.age = backendUser.age;
-      profile.gender = backendUser.gender;
-      profile.bloodGroup = backendUser.blood_group;
-      profile.location = backendUser.location;
-    } else if (role === 'hospital_staff') {
-      profile.staffId = backendUser.staff_id;
-      profile.department = backendUser.department;
-      profile.experienceYears = backendUser.experience_years;
-      profile.hospitalId = backendUser.hospital_id;
-      profile.hospitalName = backendUser.hospital_name;
-      // staffToken is the same JWT — used by useStaffHospital for staff-only endpoints
-      profile.staffToken = token;
-    } else if (role === 'admin') {
-      profile.adminLevel = 'System Administrator';
-    }
-
-    return profile;
-  };
-
-  // ─── Token expiration check ───────────────────────────────────────────────
-  const isTokenExpired = (): boolean => {
-    const expiresAt = localStorage.getItem('auth_token_expires_at');
-    if (!expiresAt) return true;
-    return Date.now() > parseInt(expiresAt, 10);
-  };
-
-  // ─── Session restoration on mount ─────────────────────────────────────────
-  useEffect(() => {
-    const restoreSession = async () => {
-      const storedToken = localStorage.getItem('auth_token');
-      if (!storedToken || isTokenExpired()) {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_token_expires_at');
-        setAuthLoading(false);
-        return;
-      }
-
-      try {
-        apiClient.setAccessToken(storedToken);
-        const backendUser = await authGetCurrentUser();
-        const expiresAt = localStorage.getItem('auth_token_expires_at');
-        const expiresInMs = expiresAt ? parseInt(expiresAt, 10) - Date.now() : 28800 * 1000;
-        const expiresInSec = Math.max(0, Math.floor(expiresInMs / 1000));
-        const profile = mapUserFromBackend(backendUser, storedToken, expiresInSec);
-        setCurrentUser(profile);
-        setIsAuthenticated(true);
-      } catch {
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_token_expires_at');
-        apiClient.setAccessToken(null);
-        setSessionExpired(true);
-      } finally {
-        setAuthLoading(false);
-      }
-    };
-
-    restoreSession();
-  }, []);
+  // Removed static role mapping and token restoration, handled by AuthContext
 
   // Live Location state - will be updated with real GPS coordinates
   const [userLiveLocation, setUserLiveLocation] = useState<UserGeoLocation>({
@@ -380,39 +291,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentAssessmentInput, setCurrentAssessmentInput] = useState<EmergencyAssessmentInput | null>(null);
   const [assessmentResult, setAssessmentResult] = useState<AssessmentResult | null>(null);
   const [selectedHospital, setSelectedHospital] = useState<Hospital | null>(null);
-
-  const ensureHospitalBeds = useCallback((hospital: Hospital): Bed[] => {
-    if (hospital.bedList && hospital.bedList.length > 0) return hospital.bedList;
-    const total = hospital.beds?.total ?? hospital.totalBeds ?? 0;
-    if (total <= 0) return [];
-    const icuTotal = hospital.icu?.total ?? hospital.totalICUBeds ?? 0;
-    const emergencyTotal = hospital.emergencyRooms?.total ?? hospital.totalEmergencyBeds ?? 0;
-    const beds: Bed[] = Array.from({ length: total }, (_, index) => {
-      const wardType: Bed['wardType'] = index < icuTotal
-        ? 'ICU'
-        : index < icuTotal + emergencyTotal ? 'Emergency' : 'General';
-      return {
-        id: `${hospital.hospitalId || hospital.id}-bed-${index + 1}`,
-        hospitalId: hospital.hospitalId || hospital.id,
-        bedNumber: `${wardType.slice(0, 3).toUpperCase()}-${String(index + 1).padStart(3, '0')}`,
-        wardType,
-        status: 'Available',
-        updatedAt: new Date().toISOString(),
-      };
-    });
-    const initialized = { ...hospital, bedList: beds, beds: { ...hospital.beds, total, available: total, occupied: 0, reserved: 0 } };
-    hospitalService.updateHospitalSync(initialized);
-    return beds;
-  }, []);
-
-  const setSelectedHospitalById = useCallback((hospitalId: string) => {
-    const hospital = hospitals.find(h => h.hospitalId === hospitalId || h.id === hospitalId);
-    if (!hospital) return;
-    const bedsForHospital = ensureHospitalBeds(hospital);
-    const selected = bedsForHospital === hospital.bedList ? hospital : { ...hospital, bedList: bedsForHospital };
-    setSelectedHospital(selected);
-    setBedsState(bedsForHospital);
-  }, [ensureHospitalBeds, hospitals]);
   const [activePreAlert, setActivePreAlert] = useState<HospitalPreAlert | null>(null);
   const [activeAmbulance, setActiveAmbulance] = useState<Ambulance | null>(null);
   const [myQueueToken, setMyQueueToken] = useState<QueuePatient | null>(null);
@@ -444,7 +322,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (hosp) {
       setDoctorsState(hosp.doctorList || []);
       setRoomsState(hosp.roomsList || []);
-      setBedsState(ensureHospitalBeds(hosp));
+      if (hosp.bedList && hosp.bedList.length > 0) {
+        setBedsState(hosp.bedList);
+      }
     }
   }, [selectedHospital, hospitals, currentUser.hospitalId]);
 
@@ -501,94 +381,108 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       console.log('[Config] LocationIQ configured:', isConfigured('locationiq'));
     }
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        try {
-          const geoInfo = await reverseGeocodeCoords(latitude, longitude);
-          
-          setUserLiveLocation({
-            lat: latitude,
-            lng: longitude,
-            address: geoInfo.address,
-            city: geoInfo.city,
-            isLiveGps: true,
-            accuracyMeters: Math.round(accuracy)
-          });
+    try {
+      let latitude: number;
+      let longitude: number;
+      let accuracy: number;
+      let isSimulated = false;
 
-          console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
-          console.log('[GPS] Reverse geocoded address:', geoInfo.address);
-
-          let nearbyHospitals: Hospital[] = [];
-          let discoverySource: string = 'none';
-          let providerMessage: string | undefined;
-          try {
-            const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
-              minHospitals: 5,
-              initialRadiusKm: 10,
-              maxRadiusKm: 30,
-            });
-            nearbyHospitals = discovery.hospitals;
-            discoverySource = discovery.source;
-            providerMessage = discovery.providerMessage;
-            console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km via', discoverySource);
-            if (providerMessage) {
-              console.log('[Hospitals] Provider message:', providerMessage);
-            }
-          } catch (discoveryError) {
-            console.warn('[Hospitals] Discovery error:', discoveryError);
-          }
-
-          if (nearbyHospitals.length > 0) {
-            const merged = await hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
-            setHospitals(merged);
-            setSelectedHospital(merged[0]);
-            addNotification({
-              title: '📍 Live GPS Location Acquired',
-              message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
-              type: 'system'
-            });
-          } else {
-            const status = mapService.getStatus();
-            let message = 'No hospitals found in the selected radius.';
-            if (providerMessage) {
-              message = providerMessage;
-            } else if (status.message) {
-              message = status.message;
-            }
-            addNotification({
-              title: '📍 Location Acquired — No Hospitals Found',
-              message: `${message} Try searching by hospital name.`,
-              type: 'system'
-            });
-          }
-
-        } catch (e) {
-          console.error('Error fetching real hospitals:', e);
-          addNotification({
-            title: '⚠️ Location Error',
-            message: 'Failed to fetch hospital data. Please try again.',
-            type: 'system'
-          });
-        } finally {
-          setIsLocatingUser(false);
-        }
-      },
-      (err) => {
+      try {
+        const coords = await locationService.requestLocation();
+        latitude = coords.latitude;
+        longitude = coords.longitude;
+        accuracy = coords.accuracy;
+      } catch (err: any) {
         console.warn('GPS location permission denied or timed out:', err.message);
-        setIsLocatingUser(false);
+        latitude = 12.9716; // Bangalore Center
+        longitude = 77.5946;
+        accuracy = 100;
+        isSimulated = true;
+        
         addNotification({
-          title: '⚠️ Location Permission Denied',
-          message: 'Please enable location access to find nearby hospitals.',
+          title: '⚠️ Using Simulated Location',
+          message: 'GPS access unavailable. Falling back to Hackathon Demo Location (Bengaluru).',
           type: 'system'
         });
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
       }
-    );
+
+      try {
+        const geoInfo = await reverseGeocodeCoords(latitude, longitude);
+        
+        setUserLiveLocation({
+          lat: latitude,
+          lng: longitude,
+          address: geoInfo.address,
+          city: geoInfo.city,
+          isLiveGps: !isSimulated,
+          accuracyMeters: Math.round(accuracy)
+        });
+
+        console.log('[GPS] User location:', { lat: latitude, lng: longitude, accuracy });
+        console.log('[GPS] Reverse geocoded address:', geoInfo.address);
+
+        let nearbyHospitals: Hospital[] = [];
+        let discoverySource: string = 'none';
+        let providerMessage: string | undefined;
+        try {
+          const discovery = await hospitalDiscoveryService.discoverHospitals(latitude, longitude, {
+            minHospitals: 5,
+            initialRadiusKm: 10,
+            maxRadiusKm: 30,
+          });
+          nearbyHospitals = discovery.hospitals;
+          discoverySource = discovery.source;
+          providerMessage = discovery.providerMessage;
+          console.log('[Hospitals] Discovery found:', nearbyHospitals.length, 'within', discovery.searchRadiusKm, 'km via', discoverySource);
+          if (providerMessage) {
+            console.log('[Hospitals] Provider message:', providerMessage);
+          }
+        } catch (discoveryError) {
+          console.warn('[Hospitals] Discovery error:', discoveryError);
+        }
+
+        if (nearbyHospitals.length > 0) {
+          const merged = await hospitalService.mergeDiscoveredHospitals(nearbyHospitals);
+          setHospitals(merged);
+          setSelectedHospital(merged[0]);
+          addNotification({
+            title: '📍 Live GPS Location Acquired',
+            message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
+            type: 'system'
+          });
+        } else {
+          const status = mapService.getStatus();
+          let message = 'No hospitals found in the selected radius.';
+          if (providerMessage) {
+            message = providerMessage;
+          } else if (status.message) {
+            message = status.message;
+          }
+          addNotification({
+            title: '📍 Location Acquired — No Hospitals Found',
+            message: `${message} Try searching by hospital name.`,
+            type: 'system'
+          });
+        }
+
+      } catch (e) {
+        console.error('Error fetching real hospitals:', e);
+        addNotification({
+          title: '⚠️ Location Error',
+          message: 'Failed to fetch hospital data. Please try again.',
+          type: 'system'
+        });
+      }
+    } catch (err: any) {
+      console.warn('GPS location permission denied or timed out:', err.message);
+      addNotification({
+        title: '⚠️ Location Permission Denied',
+        message: 'Please enable location access to find nearby hospitals.',
+        type: 'system'
+      });
+    } finally {
+      setIsLocatingUser(false);
+    }
   };
 
   // Attempt live GPS auto-detect immediately on app load with High Accuracy
@@ -605,125 +499,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [hospitals, assessmentResult]);
 
   // ─── Authentication ──────────────────────────────────────────────────────
-  const loginAsDemo = (role: UserRole) => {
-    const demoProfiles: Record<UserRole, UserProfile> = {
-      patient: {
-        id: 'usr-demo-patient',
-        name: 'Rohan Verma',
-        role: 'patient',
-        email: 'patient@mediflow.ai',
-        phone: '+91 98765 43210',
-        avatarInitials: 'RV',
-        accountStatus: 'active',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        age: 34,
-        gender: 'Male',
-        bloodGroup: 'O+',
-        location: 'Koramangala, Bangalore'
-      },
-      hospital_staff: {
-        id: 'usr-demo-staff',
-        name: 'Dr. Priya Sharma',
-        role: 'hospital_staff',
-        email: 'staff@mediflow.ai',
-        phone: '+91 98765 43211',
-        avatarInitials: 'PS',
-        accountStatus: 'active',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        staffId: 'STF-BLR-001',
-        department: 'Emergency & Trauma Care',
-        experienceYears: 8,
-        hospitalId: hospitals[0]?.id || 'hosp-1',
-        hospitalName: hospitals[0]?.name || 'Manipal Hospital'
-      },
-      admin: {
-        id: 'usr-demo-admin',
-        name: 'System Administrator',
-        role: 'admin',
-        email: 'admin@mediflow.ai',
-        avatarInitials: 'AD',
-        accountStatus: 'active',
-        createdAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
-        adminLevel: 'Chief Medical Administrator'
-      }
-    };
-
-    const profile = demoProfiles[role];
-    setCurrentUser(profile);
-    setIsAuthenticated(true);
-    setSessionExpired(false);
+  const login = async (email: string, password: string, selectedRole?: UserRole) => {
+    return await authLogin(email, password, selectedRole);
   };
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
-    try {
-      const response = await authLogin({ email, password });
-      const { access_token, expires_in, user } = response;
-
-      apiClient.setAccessToken(access_token);
-      localStorage.setItem('auth_token_expires_at', String(Date.now() + expires_in * 1000));
-
-      const profile = mapUserFromBackend(user, access_token, expires_in);
-      setCurrentUser(profile);
-      setIsAuthenticated(true);
-      setSessionExpired(false);
-
-      return { success: true, role: profile.role };
-    } catch (err: any) {
-      // If network error and matches demo credentials, allow seamless offline demo access
-      const isNetworkErr = err?.code === 'NETWORK_ERROR' || err?.status === 0;
-      if (isNetworkErr) {
-        if (email.toLowerCase() === 'patient@mediflow.ai' && password === 'patient123') {
-          loginAsDemo('patient');
-          return { success: true, role: 'patient' };
-        }
-        if (email.toLowerCase() === 'staff@mediflow.ai' && password === 'staff123') {
-          loginAsDemo('hospital_staff');
-          return { success: true, role: 'hospital_staff' };
-        }
-        if (email.toLowerCase() === 'admin@mediflow.ai' && password === 'admin123') {
-          loginAsDemo('admin');
-          return { success: true, role: 'admin' };
-        }
-      }
-      const message = err?.message || 'Login failed. Please check your credentials.';
-      return { success: false, error: message };
-    }
+  const register = async (payload: any, selectedRole?: UserRole) => {
+    return await authRegister(payload, selectedRole);
   };
 
-  const register = async (email: string, password: string, fullName: string, phone?: string, role: UserRole = 'patient', hospitalId?: string): Promise<{ success: boolean; error?: string; role?: UserRole }> => {
-    try {
-      const backendRole = role === 'hospital_staff' ? 'HOSPITAL_STAFF' : 'PATIENT';
-      await authRegister({ email, password, full_name: fullName, phone, role: backendRole, hospital_id: hospitalId });
-      const loginResult = await login(email, password);
-      if (loginResult.success) {
-        return { success: true, role: loginResult.role };
-      }
-      return { success: false, error: 'Account created. Please sign in.' };
-    } catch (err: any) {
-      const message = err?.message || 'Registration failed. Please try again.';
-      return { success: false, error: message };
-    }
-  };
-
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_token_expires_at');
-    apiClient.setAccessToken(null);
-    setIsAuthenticated(false);
-    setSessionExpired(false);
-    setCurrentUser({
-      id: 'usr-guest',
-      name: 'Guest',
-      role: 'patient',
-      email: 'guest@mediflow.ai',
-      accountStatus: 'active',
-      createdAt: new Date().toISOString(),
-      lastLogin: new Date().toISOString(),
-    });
-    // Reset session state
+  const logout = async () => {
+    await authLogout();
+    setLocalProfileOverride(null);
     setAssessmentResult(null);
     setCurrentAssessmentInput(null);
     setMyQueueToken(null);
@@ -736,7 +522,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setUserRole = (role: UserRole) => {
     let name = 'Demo User';
 
-    const profile: UserProfile = {
+    const newProfile: UserProfile = {
       id: `usr-${role}`,
       name,
       role,
@@ -747,7 +533,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       lastLogin: new Date().toISOString(),
     };
 
-    setCurrentUser(profile);
+    setLocalProfileOverride(newProfile);
 
     addNotification({
       title: `Switched View: ${role.replace('_', ' ').toUpperCase()}`,
@@ -757,8 +543,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateProfile = (updates: Partial<UserProfile>) => {
-    setCurrentUser(prev => {
-      const updated = { ...prev, ...updates };
+    setLocalProfileOverride(prev => {
+      const current = prev || currentUser;
+      const updated = { ...current, ...updates };
       // Keep avatar initials in sync with the new name
       if (updates.name) {
         updated.avatarInitials = updates.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
@@ -1204,7 +991,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     
     // Get current bed list without re-randomizing or resetting other beds
-    const currentBeds = ensureHospitalBeds(hosp);
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
     
     // Modify ONLY the selected bed, preserving all other rooms/beds
     const newBeds = currentBeds.map(b => {
@@ -1260,7 +1047,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleBedStatus = (bedId: string) => {
     const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
     if (!hosp) return;
-    const currentBeds = ensureHospitalBeds(hosp);
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
     const targetBed = currentBeds.find(b => b.id === bedId);
     if (!targetBed) return;
 
@@ -1416,7 +1203,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         sessionExpired,
         login,
         register,
-        loginAsDemo,
         logout,
         currentUser,
         setUserRole,
@@ -1431,8 +1217,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         addDiscoveredHospitals,
         selectedHospital,
         setSelectedHospital,
-        setSelectedHospitalById,
-        ensureHospitalBeds,
         rankedHospitals,
         currentAssessmentInput,
         assessmentResult,
