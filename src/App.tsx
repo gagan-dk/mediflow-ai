@@ -48,10 +48,6 @@ const AppContent: React.FC = () => {
       case '/queue':
         return <LiveQueuePage navigate={navigate} />;
       case '/command-center':
-        if (currentUser?.role !== 'hospital_staff' && currentUser?.role !== 'admin') {
-          navigate('/');
-          return null;
-        }
         return <HospitalCommandCenterPage />;
       case '/ambulances':
         return <EmergencyTransportPage navigate={navigate} />;

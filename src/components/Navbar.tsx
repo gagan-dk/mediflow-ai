@@ -54,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, navigate }) => {
     ),
     { label: 'Live Queue', path: '/queue', icon: Clock, roles: ['patient', 'hospital_staff', 'admin'] },
     { label: 'My Journey', path: '/journey', icon: Navigation, roles: ['patient'] },
-    { label: 'Command Center', path: '/command-center', icon: BarChart3, roles: ['hospital_staff', 'admin'] },
+    { label: 'Command Center', path: '/command-center', icon: BarChart3, roles: ['patient', 'hospital_staff', 'admin'] },
     { label: 'Ambulances', path: '/ambulances', icon: Truck, roles: ['hospital_staff', 'admin'] },
     { label: 'System Insights', path: '/insights', icon: Sparkles, roles: ['admin'] },
     { label: 'Privacy & Safety', path: '/privacy', icon: Lock, roles: ['patient', 'hospital_staff', 'admin'] }

@@ -21,7 +21,12 @@ import {
   TrendingUp,
   PieChart as PieChartIcon,
   MapPin,
-  Loader2
+  Loader2,
+  Building2,
+  Settings,
+  X,
+  Lock,
+  Hospital as HospitalIcon
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -39,6 +44,7 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { PreAlertModal } from '../components/PreAlertModal';
+import { HospitalOperationalDataEditor } from '../components/HospitalOperationalDataEditor';
 import { HospitalPreAlert } from '../types/preAlert';
 import { QueueStatus } from '../types/queue';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
@@ -70,6 +76,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
     currentUser, 
     hospitals, 
     selectedHospital,
+    setSelectedHospital,
     beds, 
     toggleBedStatus, 
     queuePatients, 
@@ -82,6 +89,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'overview' | 'queue' | 'beds' | 'analytics'>('overview');
   const [selectedPreAlertForModal, setSelectedPreAlertForModal] = useState<HospitalPreAlert | null>(null);
+  const [isBedEditModalOpen, setIsBedEditModalOpen] = useState(false);
 
   // Backend queue state for staff
   const [backendQueue, setBackendQueue] = useState<QueueTokenView[]>([]);
@@ -146,7 +154,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const canManageOperations = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
   const canViewOperations = ['patient', 'hospital_staff', 'admin', 'paramedic'].includes(currentUser.role);
 
-  const primaryHospital = selectedHospital || hospitals[0]; // Use selected hospital or fallback to first
+  const primaryHospital = selectedHospital || (currentUser.hospitalId ? hospitals.find(h => h.hospitalId === currentUser.hospitalId || h.id === currentUser.hospitalId) : null) || hospitals[0];
+  const hospitalBeds = primaryHospital?.bedList && primaryHospital.bedList.length > 0
+    ? primaryHospital.bedList
+    : beds;
 
   // Show hospital selection reminder for hospital staff if no hospital is selected
   const showHospitalSelectionReminder = currentUser.role === 'hospital_staff' && !selectedHospital;
@@ -154,10 +165,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const opDataAvailable = primaryHospital?.operationalDataAvailable === true;
 
   // Aggregated Stats
-  const totalBeds = primaryHospital?.totalBeds ?? 0;
-  const availableBeds = primaryHospital?.availableBeds ?? 0;
-  const totalICUBeds = primaryHospital?.totalICUBeds ?? 0;
-  const availableICUBeds = primaryHospital?.availableICUBeds ?? 0;
+  const totalBeds = primaryHospital?.beds?.total ?? primaryHospital?.totalBeds ?? hospitalBeds.length;
+  const availableBeds = primaryHospital?.beds?.available ?? primaryHospital?.availableBeds ?? hospitalBeds.filter(b => b.status === 'Available').length;
+  const totalICUBeds = primaryHospital?.icu?.total ?? primaryHospital?.totalICUBeds ?? hospitalBeds.filter(b => b.wardType === 'ICU').length;
+  const availableICUBeds = primaryHospital?.icu?.available ?? primaryHospital?.availableICUBeds ?? hospitalBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length;
   const avgWait = primaryHospital?.estimatedWaitTimeMinutes ?? 0;
   const activeEmergencyCases = displayQueue.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
   const occupancyPercent = totalBeds > 0 ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100) : 0;
@@ -235,6 +246,28 @@ export const HospitalCommandCenterPage: React.FC = () => {
           </div>
         )}
 
+        {/* Hospital Selector for Patient & Staff */}
+        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-2xl p-2 shadow-xs">
+          <div className="flex items-center gap-1.5 px-2">
+            <Building2 className="w-4 h-4 text-brand-600" />
+            <span className="text-xs font-semibold text-slate-500">Hospital:</span>
+          </div>
+          <select
+            value={primaryHospital?.id || ''}
+            onChange={(e) => {
+              const target = hospitals.find(h => h.id === e.target.value || h.hospitalId === e.target.value);
+              if (target) setSelectedHospital(target);
+            }}
+            className="text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-brand-500 cursor-pointer"
+          >
+            {hospitals.map(hosp => (
+              <option key={hosp.id} value={hosp.id}>
+                {hosp.name} {hosp.hospitalId === currentUser.hospitalId ? '(Your Assigned)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Top Action Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl shadow-xs text-xs font-semibold">
           <button
@@ -260,7 +293,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
               activeTab === 'beds' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Bed Matrix ({beds.length})
+            Bed Matrix ({hospitalBeds.length})
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -272,6 +305,34 @@ export const HospitalCommandCenterPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Patient View-Only Mode Banner */}
+      {currentUser.role === 'patient' && (
+        <div className="bg-gradient-to-r from-sky-50 via-brand-50 to-sky-50 border border-sky-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-sky-900 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-sky-100 text-sky-700 rounded-xl">
+              <Eye className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-sky-950 flex items-center gap-2">
+                <span>Patient Transparency Console</span>
+                <span className="px-2 py-0.5 bg-sky-200 text-sky-800 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                  View-Only Mode
+                </span>
+              </div>
+              <p className="text-slate-600 mt-0.5">
+                Real-time visibility into bed occupancy matrix, emergency load, and active queues. Operational modifications are reserved for hospital staff.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-sky-200 rounded-xl font-semibold text-slate-700">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              Controls Locked
+            </span>
+          </div>
+        </div>
+      )}
 
       <DisclaimerBanner compact />
 
@@ -757,21 +818,39 @@ export const HospitalCommandCenterPage: React.FC = () => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Visual Hospital Bed &amp; ICU Allocation Matrix</h3>
-              <p className="text-xs text-slate-500">
-                {canManageOperations ? 'Click any bed to toggle state: Available → Occupied → Cleaning → Available' : 'Current bed allocation status (read-only)'}
+              <div className="flex items-center gap-2.5">
+                <h3 className="font-bold text-slate-900 text-sm">Visual Hospital Bed &amp; ICU Allocation Matrix</h3>
+                {canManageOperations ? (
+                  <button
+                    onClick={() => setIsBedEditModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl text-xs font-bold transition shadow-xs"
+                    title="Edit bed totals and availability for this hospital"
+                  >
+                    <Settings className="w-3.5 h-3.5" />
+                    <span>Edit Bed Capacity</span>
+                  </button>
+                ) : (
+                  <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                    View Only
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {canManageOperations 
+                  ? 'Click any bed to toggle state: Available → Occupied → Cleaning → Reserved → Available, or click Edit Bed Capacity to update counts.' 
+                  : 'Live bed allocation status for patients (read-only mode).'}
               </p>
             </div>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500" /> Available</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500" /> Occupied</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500" /> Cleaning</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500" /> Reserved</span>
+            <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500" /> Available ({hospitalBeds.filter(b => b.status === 'Available').length})</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500" /> Occupied ({hospitalBeds.filter(b => b.status === 'Occupied').length})</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500" /> Cleaning ({hospitalBeds.filter(b => b.status === 'Cleaning').length})</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500" /> Reserved ({hospitalBeds.filter(b => b.status === 'Reserved').length})</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {beds.map(bed => {
+            {hospitalBeds.map(bed => {
               const isAvail = bed.status === 'Available';
               const isOcc = bed.status === 'Occupied';
               const isClean = bed.status === 'Cleaning';
@@ -799,7 +878,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
                 </>
               );
 
-              const bedClasses = `p-3.5 rounded-xl border text-left transition transform active:scale-95 space-y-1.5 ${
+              const bedClasses = `p-3.5 rounded-xl border text-left transition transform ${canManageOperations ? 'active:scale-95' : ''} space-y-1.5 ${
                 isAvail ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
                 isOcc ? 'bg-red-50/50 border-red-200 hover:border-red-400' :
                 isClean ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
@@ -812,13 +891,14 @@ export const HospitalCommandCenterPage: React.FC = () => {
                     key={bed.id}
                     onClick={() => toggleBedStatus(bed.id)}
                     className={bedClasses}
+                    title="Click to toggle bed status"
                   >
                     {bedContent}
                   </button>
                 );
               } else {
                 return (
-                  <div key={bed.id} className={bedClasses}>
+                  <div key={bed.id} className={bedClasses} title={`${bed.bedNumber} — ${bed.status}`}>
                     {bedContent}
                   </div>
                 );
@@ -904,6 +984,33 @@ export const HospitalCommandCenterPage: React.FC = () => {
         isOpen={!!selectedPreAlertForModal}
         onClose={() => setSelectedPreAlertForModal(null)}
       />
+
+      {/* Quick Bed Capacity Editor Modal for Staff */}
+      {isBedEditModalOpen && primaryHospital && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <BedDouble className="w-5 h-5 text-brand-600" />
+                <h3 className="font-bold text-lg text-slate-900">
+                  Edit Bed Capacity — {primaryHospital.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsBedEditModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <HospitalOperationalDataEditor
+              hospital={primaryHospital}
+              staffToken={currentUser.staffToken}
+              onSuccess={() => setIsBedEditModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

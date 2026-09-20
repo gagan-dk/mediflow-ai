@@ -55,12 +55,105 @@ export function createHospitalId(name: string, lat: number, lng: number): string
   return `hosp-${slug}-${Math.round(lat * 100)}-${Math.round(lng * 100)}`;
 }
 
+export function generateHospitalBeds(
+  hospital: Hospital,
+  counts?: {
+    icuTotal?: number;
+    icuAvailable?: number;
+    bedTotal?: number;
+    bedAvailable?: number;
+    erTotal?: number;
+    erAvailable?: number;
+  },
+  existingBeds?: Bed[]
+): Bed[] {
+  const hospId = hospital.hospitalId || hospital.id || 'hosp';
+  const prefix = (hospital.name || 'HOSP')
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 6)
+    .toUpperCase();
+
+  const icuTot = Math.max(0, counts?.icuTotal ?? hospital.icu?.total ?? hospital.totalICUBeds ?? 4);
+  const icuAvail = Math.max(0, Math.min(icuTot, counts?.icuAvailable ?? hospital.icu?.available ?? hospital.availableICUBeds ?? 1));
+
+  const erTot = Math.max(0, counts?.erTotal ?? hospital.emergencyRooms?.total ?? hospital.totalEmergencyBeds ?? 4);
+  const erAvail = Math.max(0, Math.min(erTot, counts?.erAvailable ?? hospital.emergencyRooms?.available ?? hospital.availableEmergencyBeds ?? 2));
+
+  const genTot = Math.max(0, counts?.bedTotal ?? hospital.beds?.total ?? hospital.totalBeds ?? 12);
+  const genAvail = Math.max(0, Math.min(genTot, counts?.bedAvailable ?? hospital.beds?.available ?? hospital.availableBeds ?? 5));
+
+  const beds: Bed[] = [];
+  const now = new Date().toISOString();
+  const prevList = existingBeds || hospital.bedList || [];
+
+  // ICU beds
+  for (let i = 1; i <= icuTot; i++) {
+    const existing = prevList.find(b => b.wardType === 'ICU' && (b.id === `bed-icu-${hospId}-${i}` || b.bedNumber.endsWith(`ICU-${i.toString().padStart(2, '0')}`)));
+    const isAvail = i <= icuAvail;
+    beds.push({
+      id: existing?.id || `bed-icu-${hospId}-${i}`,
+      hospitalId: hospId,
+      bedNumber: existing?.bedNumber || `${prefix}-ICU-${i.toString().padStart(2, '0')}`,
+      wardType: 'ICU',
+      status: isAvail ? 'Available' : (existing?.status === 'Cleaning' || existing?.status === 'Reserved' ? existing.status : 'Occupied'),
+      severity: isAvail ? undefined : (existing?.severity || 'CRITICAL'),
+      patientName: isAvail ? undefined : (existing?.patientName || `ICU Patient #${100 + i}`),
+      assignedDoctor: existing?.assignedDoctor,
+      updatedAt: now,
+    });
+  }
+
+  // Emergency beds
+  for (let i = 1; i <= erTot; i++) {
+    const existing = prevList.find(b => b.wardType === 'Emergency' && (b.id === `bed-er-${hospId}-${i}` || b.bedNumber.endsWith(`ER-${i.toString().padStart(2, '0')}`)));
+    const isAvail = i <= erAvail;
+    beds.push({
+      id: existing?.id || `bed-er-${hospId}-${i}`,
+      hospitalId: hospId,
+      bedNumber: existing?.bedNumber || `${prefix}-ER-${i.toString().padStart(2, '0')}`,
+      wardType: 'Emergency',
+      status: isAvail ? 'Available' : (existing?.status === 'Cleaning' || existing?.status === 'Reserved' ? existing.status : 'Occupied'),
+      severity: isAvail ? undefined : (existing?.severity || 'HIGH'),
+      patientName: isAvail ? undefined : (existing?.patientName || `ER Patient #${200 + i}`),
+      assignedDoctor: existing?.assignedDoctor,
+      updatedAt: now,
+    });
+  }
+
+  // General beds
+  for (let i = 1; i <= genTot; i++) {
+    const existing = prevList.find(b => b.wardType === 'General' && (b.id === `bed-gen-${hospId}-${i}` || b.bedNumber.endsWith(`B${i.toString().padStart(2, '0')}`)));
+    const isAvail = i <= genAvail;
+    beds.push({
+      id: existing?.id || `bed-gen-${hospId}-${i}`,
+      hospitalId: hospId,
+      bedNumber: existing?.bedNumber || `${prefix}-B${i.toString().padStart(2, '0')}`,
+      wardType: 'General',
+      status: isAvail ? 'Available' : (existing?.status === 'Cleaning' || existing?.status === 'Reserved' ? existing.status : 'Occupied'),
+      severity: isAvail ? undefined : (existing?.severity || 'MODERATE'),
+      patientName: isAvail ? undefined : (existing?.patientName || `Patient #${300 + i}`),
+      assignedDoctor: existing?.assignedDoctor,
+      updatedAt: now,
+    });
+  }
+
+  return beds;
+}
+
+export function ensureHospitalBedList(hospital: Hospital): Hospital {
+  if (hospital.bedList && hospital.bedList.length > 0) {
+    return hospital;
+  }
+  const bedList = generateHospitalBeds(hospital);
+  return { ...hospital, bedList };
+}
+
 function loadHospitalsFromStorage(): Hospital[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) return parsed.map(ensureHospitalBedList);
     }
   } catch (e) { console.warn('Failed to load hospitals from localStorage:', e); }
   return [];
@@ -148,7 +241,7 @@ class HospitalService {
   }
 
   async updateHospital(hospital: Hospital): Promise<Hospital> {
-    const stamped: Hospital = { ...hospital, lastUpdated: new Date().toISOString(), updatedBy: 'hospital_staff', configComplete: true };
+    const stamped: Hospital = ensureHospitalBedList({ ...hospital, lastUpdated: new Date().toISOString(), updatedBy: 'hospital_staff', configComplete: true });
     try {
       const result = await updateHospitalApi(hospital.id, {
         name: stamped.name,
@@ -158,14 +251,14 @@ class HospitalService {
       }, '');
       const all = loadHospitalsFromStorage();
       const idx = all.findIndex(h => h.hospitalId === hospital.hospitalId || h.id === hospital.id);
-      const merged: Hospital = {
+      const merged: Hospital = ensureHospitalBedList({
         ...stamped,
         name: result?.hospital?.name || stamped.name,
         address: result?.hospital?.address || stamped.address,
         phone: result?.hospital?.phone || stamped.phone,
         emergencyAvailable: result?.hospital?.emergency_available ?? stamped.emergencyAvailable,
         lastUpdated: result?.hospital?.updated_at || stamped.lastUpdated,
-      };
+      });
       if (idx >= 0) all[idx] = merged; else all.push(merged);
       saveHospitalsToStorage(all);
       window.dispatchEvent(new CustomEvent('mediflow:hospitals-changed', { detail: hospital.id }));
@@ -178,12 +271,13 @@ class HospitalService {
   }
 
   updateHospitalSync(hospital: Hospital): Hospital {
+    const stamped = ensureHospitalBedList(hospital);
     const all = loadHospitalsFromStorage();
-    const idx = all.findIndex(h => h.hospitalId === hospital.hospitalId || h.id === hospital.id);
-    if (idx >= 0) all[idx] = hospital; else all.push(hospital);
+    const idx = all.findIndex(h => h.hospitalId === stamped.hospitalId || h.id === stamped.id);
+    if (idx >= 0) all[idx] = stamped; else all.push(stamped);
     saveHospitalsToStorage(all);
-    window.dispatchEvent(new CustomEvent('mediflow:hospitals-changed', { detail: hospital.id }));
-    return hospital;
+    window.dispatchEvent(new CustomEvent('mediflow:hospitals-changed', { detail: stamped.id }));
+    return stamped;
   }
 
   async addDoctor(hospitalId: string, doctor: Doctor): Promise<Doctor> {
@@ -307,30 +401,36 @@ class HospitalService {
     const hospital = this.getHospitalByIdSync(hospitalId);
     if (!hospital) return;
     const beds = { ...hospital.beds, ...data };
+    const bedList = generateHospitalBeds(hospital, { bedTotal: beds.total, bedAvailable: beds.available }, hospital.bedList);
+    const updated = { ...hospital, beds, totalBeds: beds.total, availableBeds: beds.available, bedList };
     try {
       await updateHospitalBedsApi(hospitalId, beds, '');
-      this.updateHospitalSync({ ...hospital, beds, totalBeds: beds.total, availableBeds: beds.available });
-    } catch (e) { this.updateHospitalSync({ ...hospital, beds, totalBeds: beds.total, availableBeds: beds.available }); }
+      this.updateHospitalSync(updated);
+    } catch (e) { this.updateHospitalSync(updated); }
   }
 
   async updateHospitalICU(hospitalId: string, data: Partial<HospitalOperationalData['icu']>): Promise<void> {
     const hospital = this.getHospitalByIdSync(hospitalId);
     if (!hospital) return;
     const icu = { ...hospital.icu, ...data };
+    const bedList = generateHospitalBeds(hospital, { icuTotal: icu.total, icuAvailable: icu.available }, hospital.bedList);
+    const updated = { ...hospital, icu, icuAvailable: icu.available > 0, totalICUBeds: icu.total, availableICUBeds: icu.available, bedList };
     try {
       await updateHospitalICUApi(hospitalId, icu, '');
-      this.updateHospitalSync({ ...hospital, icu, icuAvailable: icu.available > 0, totalICUBeds: icu.total, availableICUBeds: icu.available });
-    } catch (e) { this.updateHospitalSync({ ...hospital, icu, icuAvailable: icu.available > 0, totalICUBeds: icu.total, availableICUBeds: icu.available }); }
+      this.updateHospitalSync(updated);
+    } catch (e) { this.updateHospitalSync(updated); }
   }
 
   async updateHospitalEmergencyRooms(hospitalId: string, data: Partial<HospitalOperationalData['emergencyRooms']>): Promise<void> {
     const hospital = this.getHospitalByIdSync(hospitalId);
     if (!hospital) return;
     const emergencyRooms = { ...hospital.emergencyRooms, ...data };
+    const bedList = generateHospitalBeds(hospital, { erTotal: emergencyRooms.total, erAvailable: emergencyRooms.available }, hospital.bedList);
+    const updated = { ...hospital, emergencyRooms, totalEmergencyBeds: emergencyRooms.total, availableEmergencyBeds: emergencyRooms.available, bedList };
     try {
       await updateHospitalEmergencyRoomsApi(hospitalId, emergencyRooms, '');
-      this.updateHospitalSync({ ...hospital, emergencyRooms, totalEmergencyBeds: emergencyRooms.total, availableEmergencyBeds: emergencyRooms.available });
-    } catch (e) { this.updateHospitalSync({ ...hospital, emergencyRooms, totalEmergencyBeds: emergencyRooms.total, availableEmergencyBeds: emergencyRooms.available }); }
+      this.updateHospitalSync(updated);
+    } catch (e) { this.updateHospitalSync(updated); }
   }
 
   async updateHospitalQueue(hospitalId: string, data: Partial<HospitalOperationalData['queue']>): Promise<void> {

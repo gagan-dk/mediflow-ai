@@ -14,6 +14,7 @@ import {
 import { Hospital } from '../types/hospital';
 import { useApp } from '../context/AppContext';
 import { staffApi } from '../services/api/staffApi';
+import { generateHospitalBeds } from '../services/hospitalService';
 
 interface HospitalOperationalDataEditorProps {
   hospital: Hospital;
@@ -62,6 +63,7 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
     updateHospitalQueue,
     updateHospitalAmbulances,
     updateHospitalCapabilities,
+    setBeds,
     getHospitalById,
     addNotification
   } = useApp();
@@ -103,6 +105,15 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
         }, staffToken);
       }
 
+      const newBedList = generateHospitalBeds(hospital, {
+        icuTotal,
+        icuAvailable,
+        bedTotal,
+        bedAvailable,
+        erTotal,
+        erAvailable,
+      }, hospital.bedList);
+
       await Promise.all([
         updateHospitalICU(hospital.hospitalId || hospital.id, {
           total: icuTotal,
@@ -136,12 +147,21 @@ export const HospitalOperationalDataEditor: React.FC<HospitalOperationalDataEdit
 
       const latest = await updateHospital({
         ...hospital,
+        bedList: newBedList,
+        totalBeds: bedTotal,
+        availableBeds: bedAvailable,
+        totalICUBeds: icuTotal,
+        availableICUBeds: icuAvailable,
+        totalEmergencyBeds: erTotal,
+        availableEmergencyBeds: erAvailable,
         operationalDataAvailable: true,
       });
 
+      setBeds(newBedList);
+
       addNotification({
-        title: 'Success',
-        message: `${latest.name}: ${icuAvailable} ICU beds, ${bedAvailable} general beds, ${erAvailable} emergency rooms — now live for patients.`,
+        title: 'Beds & Command Center Updated',
+        message: `${latest.name}: ${icuAvailable}/${icuTotal} ICU beds, ${bedAvailable}/${bedTotal} general beds, ${erAvailable}/${erTotal} emergency rooms — saved to Command Center Bed Matrix and published live for patients.`,
         type: 'success',
       });
 
