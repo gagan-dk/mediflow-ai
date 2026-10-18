@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Hospital, Bed, Doctor, Room } from '../types/hospital';
+import { Hospital, Bed, Doctor, Room, SeverityLevel } from '../types/hospital';
 import { Ambulance, AmbulanceStatus } from '../types/ambulance';
 import { QueuePatient, QueueStatus } from '../types/queue';
 import { HospitalPreAlert, PreAlertStatus } from '../types/preAlert';
@@ -126,7 +126,8 @@ interface AppContextType {
   // Bed Management
   beds: Bed[];
   toggleBedStatus: (bedId: string) => void;
-  updateBedStatus: (bedId: string, status: Bed['status'], patientName?: string) => void;
+  updateBedStatus: (bedId: string, status: Bed['status'], patientName?: string, severity?: SeverityLevel) => void;
+  updateWardBedStatus: (wardType: Bed['wardType'], status: Bed['status']) => void;
 
   // Centralized Hospital Service
   getHospitalById: (hospitalId: string) => Hospital | null;
@@ -464,6 +465,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const setBeds = (newBeds: Bed[]) => {
+    setBedsState(newBeds);
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (hosp) {
+      const availableBeds = newBeds.filter(b => b.status === 'Available').length;
+      const occupiedBeds = newBeds.filter(b => b.status === 'Occupied').length;
+      const reservedBeds = newBeds.filter(b => b.status === 'Reserved').length;
+      const icuAvailable = newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length;
+      const erAvailable = newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Available').length;
+
+      const updatedHosp: Hospital = {
+        ...hosp,
+        bedList: newBeds,
+        availableBeds,
+        beds: {
+          ...hosp.beds,
+          total: newBeds.length,
+          available: availableBeds,
+          occupied: occupiedBeds,
+          reserved: reservedBeds
+        },
+        availableICUBeds: icuAvailable,
+        icu: {
+          ...hosp.icu,
+          available: icuAvailable,
+          occupied: newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Occupied').length
+        },
+        availableEmergencyBeds: erAvailable,
+        emergencyRooms: {
+          ...hosp.emergencyRooms,
+          available: erAvailable,
+          occupied: newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Occupied').length
+        },
+        operationalDataAvailable: true,
+      };
+      hospitalService.updateHospital(updatedHosp);
+      setHospitalsState(prev => prev.map(h => (h.id === updatedHosp.id || h.hospitalId === updatedHosp.hospitalId ? updatedHosp : h)));
+      setSelectedHospital(prev => (prev && (prev.id === updatedHosp.id || prev.hospitalId === updatedHosp.hospitalId) ? updatedHosp : prev));
+    }
+  };
   // Notifications
   const [notifications, setNotifications] = useState<SystemNotification[]>([
     {
@@ -1197,7 +1238,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Bed status updater - updates ONLY the targeted bed/room and recalculates metrics accurately
-  const updateBedStatus = (bedId: string, status: Bed['status'], patientName?: string) => {
+  const updateBedStatus = (bedId: string, status: Bed['status'], patientName?: string, severity?: SeverityLevel) => {
     const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
     if (!hosp) {
       soundFX.playChime();
@@ -1214,6 +1255,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...b,
         status,
         patientName: status === 'Occupied' ? (patientName || b.patientName || 'Assigned Patient') : (status === 'Available' ? undefined : b.patientName),
+        severity: status === 'Occupied' ? (severity || b.severity || (b.wardType === 'ICU' ? 'CRITICAL' : b.wardType === 'Emergency' ? 'HIGH' : 'MODERATE')) : (status === 'Available' ? undefined : b.severity),
         updatedAt: 'Just now'
       };
     });
@@ -1254,6 +1296,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     hospitalService.updateHospital(updatedHosp);
     setHospitalsState(prev => prev.map(h => (h.id === updatedHosp.id || h.hospitalId === updatedHosp.hospitalId ? updatedHosp : h)));
+    setSelectedHospital(prev => (prev && (prev.id === updatedHosp.id || prev.hospitalId === updatedHosp.hospitalId)) ? updatedHosp : prev);
+    soundFX.playChime();
+  };
+
+  // Ward bed status updater - updates ALL beds in a specific ward (e.g. ICU, Emergency, General)
+  const updateWardBedStatus = (wardType: Bed['wardType'], status: Bed['status']) => {
+    const hosp = selectedHospital || hospitals.find(h => h.hospitalId === currentUser.hospitalId) || hospitals[0];
+    if (!hosp) return;
+    const currentBeds = hosp.bedList && hosp.bedList.length > 0 ? hosp.bedList : beds;
+    const newBeds = currentBeds.map(b => {
+      if (b.wardType !== wardType) return b;
+      return {
+        ...b,
+        status,
+        patientName: status === 'Occupied' ? (b.patientName || `${wardType} Patient`) : (status === 'Available' ? undefined : b.patientName),
+        severity: status === 'Occupied' ? (b.severity || (b.wardType === 'ICU' ? 'CRITICAL' : b.wardType === 'Emergency' ? 'HIGH' : 'MODERATE')) : (status === 'Available' ? undefined : b.severity),
+        updatedAt: 'Just now'
+      };
+    });
+    setBedsState(newBeds);
+
+    const availableBeds = newBeds.filter(b => b.status === 'Available').length;
+    const occupiedBeds = newBeds.filter(b => b.status === 'Occupied').length;
+    const reservedBeds = newBeds.filter(b => b.status === 'Reserved').length;
+    const icuAvailable = newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length;
+    const erAvailable = newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Available').length;
+
+    const updatedHosp: Hospital = {
+      ...hosp,
+      bedList: newBeds,
+      availableBeds,
+      beds: {
+        ...hosp.beds,
+        total: newBeds.length,
+        available: availableBeds,
+        occupied: occupiedBeds,
+        reserved: reservedBeds
+      },
+      availableICUBeds: icuAvailable,
+      icu: {
+        ...hosp.icu,
+        available: icuAvailable,
+        occupied: newBeds.filter(b => b.wardType === 'ICU' && b.status === 'Occupied').length
+      },
+      availableEmergencyBeds: erAvailable,
+      emergencyRooms: {
+        ...hosp.emergencyRooms,
+        available: erAvailable,
+        occupied: newBeds.filter(b => b.wardType === 'Emergency' && b.status === 'Occupied').length
+      }
+    };
+
+    hospitalService.updateHospital(updatedHosp);
+    setHospitalsState(prev => prev.map(h => (h.id === updatedHosp.id || h.hospitalId === updatedHosp.hospitalId ? updatedHosp : h)));
+    setSelectedHospital(prev => (prev && (prev.id === updatedHosp.id || prev.hospitalId === updatedHosp.hospitalId)) ? updatedHosp : prev);
     soundFX.playChime();
   };
 
@@ -1465,6 +1562,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         beds,
         toggleBedStatus,
         updateBedStatus,
+        updateWardBedStatus,
         getHospitalById: hospitalService.getHospitalByIdSync.bind(hospitalService),
         updateHospital: hospitalService.updateHospital.bind(hospitalService),
         updateHospitalBeds: hospitalService.updateHospitalBeds.bind(hospitalService),

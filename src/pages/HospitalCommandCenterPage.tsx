@@ -21,7 +21,18 @@ import {
   TrendingUp,
   PieChart as PieChartIcon,
   MapPin,
-  Loader2
+  Loader2,
+  Building2,
+  Settings,
+  X,
+  Lock,
+  Hospital as HospitalIcon,
+  Edit3,
+  Search,
+  Sparkles,
+  Stethoscope,
+  SlidersHorizontal,
+  HeartPulse
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -39,6 +50,7 @@ import {
 } from 'recharts';
 import { useApp } from '../context/AppContext';
 import { PreAlertModal } from '../components/PreAlertModal';
+import { HospitalOperationalDataEditor } from '../components/HospitalOperationalDataEditor';
 import { HospitalPreAlert } from '../types/preAlert';
 import { QueueStatus } from '../types/queue';
 import { DisclaimerBanner } from '../components/DisclaimerBanner';
@@ -46,7 +58,7 @@ import { mapService } from '../services/map/mapService';
 import { getAllQuotaStatuses } from '../services/map/apiQuotaService';
 import type { QueueTokenView, BackendQueueStatus } from '../types/api';
 import type { QueuePatient } from '../types/queue';
-import type { SeverityLevel } from '../types/hospital';
+import type { SeverityLevel, Bed } from '../types/hospital';
 import { NOT_AVAILABLE_MESSAGE } from '../services/mockData';
 
 const mapBackendSeverity = (s: string | null): SeverityLevel => {
@@ -65,23 +77,403 @@ const mapBackendQueueStatus = (s: BackendQueueStatus): QueueStatus => {
   }
 };
 
+interface BedManagementModalProps {
+  bed: Bed | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (bedId: string, status: Bed['status'], patientName?: string, severity?: SeverityLevel, assignedDoctor?: string) => void;
+}
+
+const BedManagementModal: React.FC<BedManagementModalProps> = ({ bed, isOpen, onClose, onSave }) => {
+  const [status, setStatus] = useState<Bed['status']>('Available');
+  const [patientName, setPatientName] = useState('');
+  const [severity, setSeverity] = useState<SeverityLevel>('MODERATE');
+  const [assignedDoctor, setAssignedDoctor] = useState('');
+
+  useEffect(() => {
+    if (bed) {
+      setStatus(bed.status);
+      setPatientName(bed.patientName || '');
+      setSeverity(bed.severity || (bed.wardType === 'ICU' ? 'CRITICAL' : 'HIGH'));
+      setAssignedDoctor(bed.assignedDoctor || '');
+    }
+  }, [bed]);
+
+  if (!isOpen || !bed) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave(
+      bed.id,
+      status,
+      status === 'Occupied' || status === 'Reserved' ? patientName : undefined,
+      status === 'Occupied' ? severity : undefined,
+      assignedDoctor || undefined
+    );
+    onClose();
+  };
+
+  const handleQuickClear = () => {
+    setStatus('Cleaning');
+    setPatientName('');
+    onSave(bed.id, 'Cleaning', undefined, undefined, undefined);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-5">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
+              <BedDouble className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-900">
+                Bed Allocation: {bed.bedNumber}
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">{bed.wardType} Ward</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              Bed Status
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {(['Available', 'Occupied', 'Cleaning', 'Reserved'] as const).map(s => {
+                const isSelected = status === s;
+                const colors = {
+                  Available: 'border-emerald-500 bg-emerald-50 text-emerald-800',
+                  Occupied: 'border-red-500 bg-red-50 text-red-800',
+                  Cleaning: 'border-amber-500 bg-amber-50 text-amber-800',
+                  Reserved: 'border-purple-500 bg-purple-50 text-purple-800'
+                };
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStatus(s)}
+                    className={`py-2 px-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-1 ${
+                      isSelected ? `${colors[s]} shadow-xs` : 'border-slate-200 hover:border-slate-300 text-slate-600 bg-slate-50/50'
+                    }`}
+                  >
+                    <span>{s}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {(status === 'Occupied' || status === 'Reserved') && (
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">Assigned Patient Name</label>
+                <input
+                  type="text"
+                  value={patientName}
+                  onChange={e => setPatientName(e.target.value)}
+                  placeholder="e.g. Ramesh Kumar or Emergency Inflow"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-500"
+                />
+              </div>
+
+              {status === 'Occupied' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-slate-600">Triage Severity</label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['CRITICAL', 'HIGH', 'MODERATE', 'LOW'] as SeverityLevel[]).map(sev => (
+                      <button
+                        key={sev}
+                        type="button"
+                        onClick={() => setSeverity(sev)}
+                        className={`py-1.5 rounded-lg text-xs font-bold border transition ${
+                          severity === sev
+                            ? sev === 'CRITICAL' ? 'bg-red-500 text-white border-red-600' :
+                              sev === 'HIGH' ? 'bg-orange-500 text-white border-orange-600' :
+                              sev === 'MODERATE' ? 'bg-yellow-500 text-slate-900 border-yellow-600' :
+                              'bg-emerald-500 text-white border-emerald-600'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {sev}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-600">Attending Doctor / Bay Lead</label>
+                <input
+                  type="text"
+                  value={assignedDoctor}
+                  onChange={e => setAssignedDoctor(e.target.value)}
+                  placeholder="e.g. Dr. A. Sharma"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-500"
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+            {bed.status === 'Occupied' && (
+              <button
+                type="button"
+                onClick={handleQuickClear}
+                className="px-3 py-1.5 text-xs font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition"
+              >
+                Discharge &amp; Clean
+              </button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-1.5 text-xs font-bold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-xs transition"
+              >
+                Update Bed State
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+interface WardStateModalProps {
+  wardType: Bed['wardType'] | null;
+  hospitalName: string;
+  bedsInWard: Bed[];
+  isOpen: boolean;
+  onClose: () => void;
+  onApplyWardState: (wardType: Bed['wardType'], newBedStatus: Bed['status']) => void;
+}
+
+const WardStateModal: React.FC<WardStateModalProps> = ({
+  wardType,
+  hospitalName,
+  bedsInWard,
+  isOpen,
+  onClose,
+  onApplyWardState
+}) => {
+  if (!isOpen || !wardType) return null;
+
+  const total = bedsInWard.length;
+  const avail = bedsInWard.filter(b => b.status === 'Available').length;
+  const occ = bedsInWard.filter(b => b.status === 'Occupied').length;
+  const clean = bedsInWard.filter(b => b.status === 'Cleaning').length;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
+      <div className="w-full max-w-lg bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-5">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold">
+              <Activity className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-slate-900">
+                Manage {wardType} Ward Operational State
+              </h3>
+              <p className="text-xs text-slate-500 font-medium">{hospitalName}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Current Ward Metrics */}
+        <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 grid grid-cols-4 gap-2 text-center">
+          <div>
+            <div className="text-[11px] text-slate-500 font-medium">Total Beds</div>
+            <div className="text-base font-extrabold text-slate-900">{total}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-emerald-600 font-medium">Available</div>
+            <div className="text-base font-extrabold text-emerald-700">{avail}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-red-600 font-medium">Occupied</div>
+            <div className="text-base font-extrabold text-red-700">{occ}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-amber-600 font-medium">Cleaning</div>
+            <div className="text-base font-extrabold text-amber-700">{clean}</div>
+          </div>
+        </div>
+
+        {/* Change Ward Operational State */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            Click to Change {wardType} Ward State:
+          </label>
+
+          <div className="space-y-2">
+            <button
+              onClick={() => {
+                onApplyWardState(wardType, 'Available');
+                onClose();
+              }}
+              className="w-full text-left p-3 rounded-xl border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100/80 transition flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500 text-white flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-emerald-900 group-hover:text-emerald-950">
+                    Accepting Patients (Set All Available)
+                  </div>
+                  <div className="text-[11px] text-emerald-700">
+                    Set all {total} {wardType} beds to Available for immediate emergency intake.
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-emerald-700 px-2.5 py-1 bg-white rounded-lg border border-emerald-200">
+                Apply
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                onApplyWardState(wardType, 'Occupied');
+                onClose();
+              }}
+              className="w-full text-left p-3 rounded-xl border border-red-200 bg-red-50/60 hover:bg-red-100/80 transition flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-red-500 text-white flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-red-900 group-hover:text-red-950">
+                    Full Capacity / Divert Protocol
+                  </div>
+                  <div className="text-[11px] text-red-700">
+                    Flag all {wardType} beds as Occupied to signal zero intake capacity.
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-red-700 px-2.5 py-1 bg-white rounded-lg border border-red-200">
+                Apply
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                onApplyWardState(wardType, 'Cleaning');
+                onClose();
+              }}
+              className="w-full text-left p-3 rounded-xl border border-amber-200 bg-amber-50/60 hover:bg-amber-100/80 transition flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <RefreshCw className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-amber-900 group-hover:text-amber-950">
+                    Ward Sanitization &amp; Turnover
+                  </div>
+                  <div className="text-[11px] text-amber-700">
+                    Mark all {wardType} beds as Cleaning for housekeeping sanitation.
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-amber-700 px-2.5 py-1 bg-white rounded-lg border border-amber-200">
+                Apply
+              </span>
+            </button>
+
+            <button
+              onClick={() => {
+                onApplyWardState(wardType, 'Reserved');
+                onClose();
+              }}
+              className="w-full text-left p-3 rounded-xl border border-purple-200 bg-purple-50/60 hover:bg-purple-100/80 transition flex items-center justify-between group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-purple-500 text-white flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-purple-900 group-hover:text-purple-950">
+                    Emergency Surge Reservation
+                  </div>
+                  <div className="text-[11px] text-purple-700">
+                    Reserve all {wardType} beds exclusively for inbound ambulances &amp; pre-alerts.
+                  </div>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-purple-700 px-2.5 py-1 bg-white rounded-lg border border-purple-200">
+                Apply
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end pt-3 border-t border-slate-100">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const HospitalCommandCenterPage: React.FC = () => {
   const { 
     currentUser, 
     hospitals, 
     selectedHospital,
+    setSelectedHospital,
     beds, 
     toggleBedStatus, 
+    updateBedStatus,
+    updateWardBedStatus,
     queuePatients, 
     updateQueuePatientStatus, 
     preAlerts, 
     ambulances,
     fetchStaffQueue,
-    updateQueueTokenStatusByStaff
+    updateQueueTokenStatusByStaff,
+    addNotification
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'queue' | 'beds' | 'analytics'>('overview');
   const [selectedPreAlertForModal, setSelectedPreAlertForModal] = useState<HospitalPreAlert | null>(null);
+  const [isBedEditModalOpen, setIsBedEditModalOpen] = useState(false);
+
+  // Bed & Ward interactive matrix state
+  const [selectedWardTab, setSelectedWardTab] = useState<'ALL' | 'ICU' | 'Emergency' | 'General' | 'Trauma' | 'Cardiac'>('ALL');
+  const [bedStatusFilter, setBedStatusFilter] = useState<'ALL' | 'Available' | 'Occupied' | 'Cleaning' | 'Reserved'>('ALL');
+  const [bedSearchQuery, setBedSearchQuery] = useState('');
+  const [editingBed, setEditingBed] = useState<Bed | null>(null);
+  const [wardActionTarget, setWardActionTarget] = useState<Bed['wardType'] | null>(null);
 
   // Backend queue state for staff
   const [backendQueue, setBackendQueue] = useState<QueueTokenView[]>([]);
@@ -146,7 +538,60 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const canManageOperations = currentUser.role === 'hospital_staff' || currentUser.role === 'admin';
   const canViewOperations = ['patient', 'hospital_staff', 'admin', 'paramedic'].includes(currentUser.role);
 
-  const primaryHospital = selectedHospital || hospitals[0]; // Use selected hospital or fallback to first
+  const primaryHospital = selectedHospital || (currentUser.hospitalId ? hospitals.find(h => h.hospitalId === currentUser.hospitalId || h.id === currentUser.hospitalId) : null) || hospitals[0];
+  const hospitalBeds = primaryHospital?.bedList && primaryHospital.bedList.length > 0
+    ? primaryHospital.bedList
+    : beds;
+
+  const WARD_CONFIGS: Record<Bed['wardType'], { label: string; icon: any; color: string; badgeBg: string; border: string; desc: string }> = {
+    'ICU': {
+      label: 'ICU (Intensive Care Unit)',
+      icon: Activity,
+      color: 'text-red-700',
+      badgeBg: 'bg-red-50 text-red-700 border-red-200',
+      border: 'border-red-200',
+      desc: 'Critical care monitoring, mechanical ventilation & hemodynamic support'
+    },
+    'Emergency': {
+      label: 'Emergency Department (ER / Resus)',
+      icon: ShieldAlert,
+      color: 'text-amber-700',
+      badgeBg: 'bg-amber-50 text-amber-700 border-amber-200',
+      border: 'border-amber-200',
+      desc: 'High acuity acute triage & rapid stabilization bays'
+    },
+    'General': {
+      label: 'General Inpatient Ward',
+      icon: Building2,
+      color: 'text-blue-700',
+      badgeBg: 'bg-blue-50 text-blue-700 border-blue-200',
+      border: 'border-blue-200',
+      desc: 'Standard medical-surgical observation & recovery beds'
+    },
+    'Trauma': {
+      label: 'Trauma & Resuscitation Center',
+      icon: AlertTriangle,
+      color: 'text-orange-700',
+      badgeBg: 'bg-orange-50 text-orange-700 border-orange-200',
+      border: 'border-orange-200',
+      desc: 'Specialized trauma resuscitation & immediate surgical prep'
+    },
+    'Cardiac': {
+      label: 'Cardiac Care Unit (CCU)',
+      icon: HeartPulse,
+      color: 'text-rose-700',
+      badgeBg: 'bg-rose-50 text-rose-700 border-rose-200',
+      border: 'border-rose-200',
+      desc: 'Telemetry & acute cardiovascular intensive observation'
+    }
+  };
+
+  const allAvailableWardTypes = Array.from(new Set(hospitalBeds.map(b => b.wardType))) as Bed['wardType'][];
+  const defaultWardOrder: Bed['wardType'][] = ['ICU', 'Emergency', 'General', 'Trauma', 'Cardiac'];
+  const orderedWards = [
+    ...defaultWardOrder.filter(w => allAvailableWardTypes.includes(w)),
+    ...allAvailableWardTypes.filter(w => !defaultWardOrder.includes(w))
+  ];
 
   // Show hospital selection reminder for hospital staff if no hospital is selected
   const showHospitalSelectionReminder = currentUser.role === 'hospital_staff' && !selectedHospital;
@@ -154,10 +599,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
   const opDataAvailable = primaryHospital?.operationalDataAvailable === true;
 
   // Aggregated Stats
-  const totalBeds = primaryHospital?.totalBeds ?? 0;
-  const availableBeds = primaryHospital?.availableBeds ?? 0;
-  const totalICUBeds = primaryHospital?.totalICUBeds ?? 0;
-  const availableICUBeds = primaryHospital?.availableICUBeds ?? 0;
+  const totalBeds = primaryHospital?.beds?.total ?? primaryHospital?.totalBeds ?? hospitalBeds.length;
+  const availableBeds = primaryHospital?.beds?.available ?? primaryHospital?.availableBeds ?? hospitalBeds.filter(b => b.status === 'Available').length;
+  const totalICUBeds = primaryHospital?.icu?.total ?? primaryHospital?.totalICUBeds ?? hospitalBeds.filter(b => b.wardType === 'ICU').length;
+  const availableICUBeds = primaryHospital?.icu?.available ?? primaryHospital?.availableICUBeds ?? hospitalBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length;
   const avgWait = primaryHospital?.estimatedWaitTimeMinutes ?? 0;
   const activeEmergencyCases = displayQueue.filter(p => p.severity === 'CRITICAL' || p.severity === 'HIGH').length;
   const occupancyPercent = totalBeds > 0 ? Math.round(((totalBeds - availableBeds) / totalBeds) * 100) : 0;
@@ -196,10 +641,10 @@ export const HospitalCommandCenterPage: React.FC = () => {
 
   // Derive bed occupancy from actual bed list
   const bedOccupancyData = (() => {
-    if (beds.length === 0) return [];
+    if (hospitalBeds.length === 0) return [];
     const wards = ['Emergency', 'ICU', 'General', 'Trauma', 'Cardiac'];
     return wards.map(ward => {
-      const wardBeds = beds.filter(b => b.wardType === ward);
+      const wardBeds = hospitalBeds.filter(b => b.wardType === ward);
       const occupied = wardBeds.filter(b => b.status === 'Occupied' || b.status === 'Reserved').length;
       const available = wardBeds.filter(b => b.status === 'Available').length;
       return { ward, occupied, available };
@@ -235,6 +680,28 @@ export const HospitalCommandCenterPage: React.FC = () => {
           </div>
         )}
 
+        {/* Hospital Selector for Patient & Staff */}
+        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-2xl p-2 shadow-xs">
+          <div className="flex items-center gap-1.5 px-2">
+            <Building2 className="w-4 h-4 text-brand-600" />
+            <span className="text-xs font-semibold text-slate-500">Hospital:</span>
+          </div>
+          <select
+            value={primaryHospital?.id || ''}
+            onChange={(e) => {
+              const target = hospitals.find(h => h.id === e.target.value || h.hospitalId === e.target.value);
+              if (target) setSelectedHospital(target);
+            }}
+            className="text-xs font-bold text-slate-900 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-brand-500 cursor-pointer"
+          >
+            {hospitals.map(hosp => (
+              <option key={hosp.id} value={hosp.id}>
+                {hosp.name} {hosp.hospitalId === currentUser.hospitalId ? '(Your Assigned)' : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {/* Top Action Tabs */}
         <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl shadow-xs text-xs font-semibold">
           <button
@@ -260,7 +727,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
               activeTab === 'beds' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Bed Matrix ({beds.length})
+            Bed Matrix ({hospitalBeds.length})
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
@@ -272,6 +739,34 @@ export const HospitalCommandCenterPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Patient View-Only Mode Banner */}
+      {currentUser.role === 'patient' && (
+        <div className="bg-gradient-to-r from-sky-50 via-brand-50 to-sky-50 border border-sky-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-sky-900 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-sky-100 text-sky-700 rounded-xl">
+              <Eye className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-bold text-sm text-sky-950 flex items-center gap-2">
+                <span>Patient Transparency Console</span>
+                <span className="px-2 py-0.5 bg-sky-200 text-sky-800 text-[10px] font-extrabold rounded-full uppercase tracking-wider">
+                  View-Only Mode
+                </span>
+              </div>
+              <p className="text-slate-600 mt-0.5">
+                Real-time visibility into bed occupancy matrix, emergency load, and active queues. Operational modifications are reserved for hospital staff.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-sky-200 rounded-xl font-semibold text-slate-700">
+              <Lock className="w-3.5 h-3.5 text-slate-400" />
+              Controls Locked
+            </span>
+          </div>
+        </div>
+      )}
 
       <DisclaimerBanner compact />
 
@@ -754,76 +1249,503 @@ export const HospitalCommandCenterPage: React.FC = () => {
 
       {/* 3. Interactive Bed & ICU Management Grid */}
       {(activeTab === 'overview' || activeTab === 'beds') && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-6">
+          {/* Section Header */}
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-5">
             <div>
-              <h3 className="font-bold text-slate-900 text-sm">Visual Hospital Bed &amp; ICU Allocation Matrix</h3>
-              <p className="text-xs text-slate-500">
-                {canManageOperations ? 'Click any bed to toggle state: Available → Occupied → Cleaning → Available' : 'Current bed allocation status (read-only)'}
-              </p>
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-xl bg-brand-50 text-brand-600 border border-brand-200">
+                  <BedDouble className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-slate-900 text-base sm:text-lg tracking-tight">
+                      Visual Hospital Bed &amp; ICU Allocation Matrix
+                    </h3>
+                    {canManageOperations ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                        Staff Controls Active
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                        View Only
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {canManageOperations 
+                      ? 'Click any ICU or ward state pill to change operational state, or click individual beds to cycle and reallocate.' 
+                      : 'Live bed and intensive care unit allocation overview across all wards.'}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs font-semibold">
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-500" /> Available</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-500" /> Occupied</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500" /> Cleaning</span>
-              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-500" /> Reserved</span>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageOperations && (
+                <button
+                  onClick={() => setIsBedEditModalOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-xl text-xs font-bold transition shadow-xs active:scale-95"
+                  title="Configure total capacity and ward limits"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Configure Capacity</span>
+                </button>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-            {beds.map(bed => {
-              const isAvail = bed.status === 'Available';
-              const isOcc = bed.status === 'Occupied';
-              const isClean = bed.status === 'Cleaning';
-              const isRes = bed.status === 'Reserved';
+          {/* Quick Metrics Bar */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+            <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200">
+              <div className="text-[11px] font-semibold text-emerald-700">Total Available</div>
+              <div className="text-xl font-extrabold text-emerald-900 flex items-center justify-between mt-0.5">
+                <span>{hospitalBeds.filter(b => b.status === 'Available').length}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-red-50/60 border border-red-200">
+              <div className="text-[11px] font-semibold text-red-700">Occupied</div>
+              <div className="text-xl font-extrabold text-red-900 flex items-center justify-between mt-0.5">
+                <span>{hospitalBeds.filter(b => b.status === 'Occupied').length}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200">
+              <div className="text-[11px] font-semibold text-amber-700">Housekeeping</div>
+              <div className="text-xl font-extrabold text-amber-900 flex items-center justify-between mt-0.5">
+                <span>{hospitalBeds.filter(b => b.status === 'Cleaning').length}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-purple-50/60 border border-purple-200">
+              <div className="text-[11px] font-semibold text-purple-700">Reserved</div>
+              <div className="text-xl font-extrabold text-purple-900 flex items-center justify-between mt-0.5">
+                <span>{hospitalBeds.filter(b => b.status === 'Reserved').length}</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-purple-500" />
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-rose-50/80 border border-rose-200 sm:col-span-2 lg:col-span-2 flex items-center justify-between">
+              <div>
+                <div className="text-[11px] font-bold text-rose-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
+                  ICU Live Availability
+                </div>
+                <div className="text-lg font-black text-rose-950 mt-0.5">
+                  {hospitalBeds.filter(b => b.wardType === 'ICU' && b.status === 'Available').length} / {hospitalBeds.filter(b => b.wardType === 'ICU').length} Beds Free
+                </div>
+              </div>
+              {canManageOperations && (
+                <button
+                  onClick={() => setWardActionTarget('ICU')}
+                  className="px-2.5 py-1 text-xs font-bold text-rose-700 bg-white hover:bg-rose-100 rounded-lg border border-rose-300 transition shadow-xs active:scale-95 flex items-center gap-1"
+                >
+                  <SlidersHorizontal className="w-3 h-3" />
+                  <span>Change ICU State</span>
+                </button>
+              )}
+            </div>
+          </div>
 
-              const bedContent = (
-                <>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="font-mono text-slate-900">{bed.bedNumber}</span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
-                      isAvail ? 'bg-emerald-200 text-emerald-900' :
-                      isOcc ? 'bg-red-200 text-red-900' :
-                      isClean ? 'bg-amber-200 text-amber-900' :
-                      'bg-purple-200 text-purple-900'
-                    }`}>
-                      {bed.status}
-                    </span>
-                  </div>
-                  <div className="text-[11px] text-slate-500 font-medium">{bed.wardType} Ward</div>
-                  {bed.patientName && (
-                    <div className="text-[10px] font-bold text-slate-700 truncate">
-                      {bed.patientName}
-                    </div>
-                  )}
-                </>
-              );
-
-              const bedClasses = `p-3.5 rounded-xl border text-left transition transform active:scale-95 space-y-1.5 ${
-                isAvail ? 'bg-emerald-50/50 border-emerald-200 hover:border-emerald-400' :
-                isOcc ? 'bg-red-50/50 border-red-200 hover:border-red-400' :
-                isClean ? 'bg-amber-50/50 border-amber-200 hover:border-amber-400' :
-                'bg-purple-50/50 border-purple-200 hover:border-purple-400'
-              } ${!canManageOperations ? 'cursor-default' : 'cursor-pointer'}`;
-
-              if (canManageOperations) {
+          {/* Interactive Toolbar: Ward Tabs, Status Filter, Search */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
+            {/* Ward Selector Tabs */}
+            <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200 text-xs font-bold">
+              <button
+                onClick={() => setSelectedWardTab('ALL')}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  selectedWardTab === 'ALL'
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                All Wards ({hospitalBeds.length})
+              </button>
+              {orderedWards.map(w => {
+                const count = hospitalBeds.filter(b => b.wardType === w).length;
+                const free = hospitalBeds.filter(b => b.wardType === w && b.status === 'Available').length;
+                const isSelected = selectedWardTab === w;
                 return (
                   <button
-                    key={bed.id}
-                    onClick={() => toggleBedStatus(bed.id)}
-                    className={bedClasses}
+                    key={w}
+                    onClick={() => setSelectedWardTab(w)}
+                    className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${
+                      isSelected
+                        ? 'bg-white text-brand-700 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
                   >
-                    {bedContent}
+                    <span>{w} Ward</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      free === 0 ? 'bg-red-100 text-red-700' : 'bg-slate-200 text-slate-700'
+                    }`}>
+                      {free}/{count}
+                    </span>
                   </button>
                 );
-              } else {
+              })}
+            </div>
+
+            {/* Status Filter & Search */}
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={bedSearchQuery}
+                  onChange={e => setBedSearchQuery(e.target.value)}
+                  placeholder="Filter bed or patient..."
+                  className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-brand-500 w-36 sm:w-44"
+                />
+                {bedSearchQuery && (
+                  <button
+                    onClick={() => setBedSearchQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={bedStatusFilter}
+                onChange={e => setBedStatusFilter(e.target.value as any)}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500"
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="Available">Available Only</option>
+                <option value="Occupied">Occupied Only</option>
+                <option value="Cleaning">Cleaning Only</option>
+                <option value="Reserved">Reserved Only</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Ward Sections */}
+          <div className="space-y-6 pt-1">
+            {orderedWards
+              .filter(w => selectedWardTab === 'ALL' || selectedWardTab === w)
+              .map(ward => {
+                const meta = WARD_CONFIGS[ward] || {
+                  label: `${ward} Ward`,
+                  icon: Building2,
+                  color: 'text-slate-700',
+                  badgeBg: 'bg-slate-100 text-slate-800 border-slate-200',
+                  border: 'border-slate-200',
+                  desc: 'Clinical patient observation and management ward'
+                };
+                const WardIcon = meta.icon;
+
+                const wardAllBeds = hospitalBeds.filter(b => b.wardType === ward);
+                const wardFilteredBeds = wardAllBeds.filter(bed => {
+                  if (bedStatusFilter !== 'ALL' && bed.status !== bedStatusFilter) return false;
+                  if (bedSearchQuery.trim()) {
+                    const q = bedSearchQuery.toLowerCase();
+                    const mNum = bed.bedNumber.toLowerCase().includes(q);
+                    const mPat = bed.patientName?.toLowerCase().includes(q);
+                    const mDoc = bed.assignedDoctor?.toLowerCase().includes(q);
+                    if (!mNum && !mPat && !mDoc) return false;
+                  }
+                  return true;
+                });
+
+                const wTotal = wardAllBeds.length;
+                const wAvail = wardAllBeds.filter(b => b.status === 'Available').length;
+                const wOcc = wardAllBeds.filter(b => b.status === 'Occupied').length;
+                const wClean = wardAllBeds.filter(b => b.status === 'Cleaning').length;
+                const wRes = wardAllBeds.filter(b => b.status === 'Reserved').length;
+                const wOccPercent = wTotal > 0 ? Math.round(((wTotal - wAvail) / wTotal) * 100) : 0;
+
+                // Determine Ward Operational State
+                const wardState = wAvail === 0 && wTotal > 0
+                  ? { label: 'Full Capacity', color: 'bg-red-500 text-white', border: 'border-red-600', pulse: true }
+                  : wAvail === 1 && wTotal > 1
+                  ? { label: 'Near Capacity', color: 'bg-amber-500 text-white', border: 'border-amber-600', pulse: false }
+                  : wClean > wAvail && wClean > 0
+                  ? { label: 'Turnover / Sanitizing', color: 'bg-yellow-500 text-slate-900', border: 'border-yellow-600', pulse: false }
+                  : wRes === wTotal && wTotal > 0
+                  ? { label: 'Surge Reserved', color: 'bg-purple-600 text-white', border: 'border-purple-700', pulse: false }
+                  : { label: 'Accepting Patients', color: 'bg-emerald-500 text-white', border: 'border-emerald-600', pulse: false };
+
                 return (
-                  <div key={bed.id} className={bedClasses}>
-                    {bedContent}
+                  <div key={ward} className="border border-slate-200/90 rounded-2xl p-4 sm:p-5 bg-slate-50/40 space-y-4">
+                    {/* Ward Header with Operational State Changer */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/60 pb-3.5">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl bg-white border border-slate-200 shadow-2xs ${meta.color}`}>
+                          <WardIcon className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="font-extrabold text-sm sm:text-base text-slate-900">
+                              {meta.label}
+                            </h4>
+                            {/* Clickable Ward State Pill */}
+                            {canManageOperations ? (
+                              <button
+                                onClick={() => setWardActionTarget(ward)}
+                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-extrabold transition shadow-xs cursor-pointer hover:brightness-105 active:scale-95 ${wardState.color}`}
+                                title={`Click to change ${ward} Ward operational state`}
+                              >
+                                {wardState.pulse && <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />}
+                                <span>{wardState.label}</span>
+                                <SlidersHorizontal className="w-3 h-3 ml-0.5 opacity-80" />
+                              </button>
+                            ) : (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${wardState.color}`}>
+                                {wardState.label}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{meta.desc}</p>
+                        </div>
+                      </div>
+
+                      {/* Ward Statistics & Batch Actions */}
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                        <div className="text-right">
+                          <div className="text-xs font-bold text-slate-900">
+                            <span className="text-emerald-600">{wAvail} Available</span> / {wTotal} Total
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold mt-0.5">
+                            <span>{wOccPercent}% Occupancy</span>
+                            <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  wOccPercent >= 90 ? 'bg-red-500' : wOccPercent >= 60 ? 'bg-amber-500' : 'bg-emerald-500'
+                                }`}
+                                style={{ width: `${wOccPercent}%` }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {canManageOperations && (
+                          <div className="flex items-center gap-1.5 border-l border-slate-200 pl-3">
+                            <button
+                              onClick={() => {
+                                updateWardBedStatus(ward, 'Available');
+                                addNotification({
+                                  title: `${ward} Ward Updated`,
+                                  message: `All beds in ${ward} marked as Available`,
+                                  type: 'system'
+                                });
+                              }}
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-bold transition shadow-2xs active:scale-95"
+                              title={`Set all ${ward} beds to Available`}
+                            >
+                              All Free
+                            </button>
+                            <button
+                              onClick={() => {
+                                updateWardBedStatus(ward, 'Occupied');
+                                addNotification({
+                                  title: `${ward} Ward Updated`,
+                                  message: `All beds in ${ward} marked as Occupied`,
+                                  type: 'system'
+                                });
+                              }}
+                              className="px-2 py-1 bg-red-50 hover:bg-red-100 text-red-800 border border-red-200 rounded-lg text-[10px] font-bold transition shadow-2xs active:scale-95"
+                              title={`Mark all ${ward} beds as Occupied`}
+                            >
+                              All Full
+                            </button>
+                            <button
+                              onClick={() => setWardActionTarget(ward)}
+                              className="p-1 text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition"
+                              title="More ward actions"
+                            >
+                              <Settings className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ward Beds Grid */}
+                    {wardFilteredBeds.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+                        No beds found matching your current filter in {ward} Ward.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
+                        {wardFilteredBeds.map(bed => {
+                          const isAvail = bed.status === 'Available';
+                          const isOcc = bed.status === 'Occupied';
+                          const isClean = bed.status === 'Cleaning';
+                          const isRes = bed.status === 'Reserved';
+
+                          const statusColors = isAvail
+                            ? { bg: 'bg-emerald-50/70', border: 'border-emerald-300 hover:border-emerald-500', badge: 'bg-emerald-200 text-emerald-950', dot: 'bg-emerald-500' }
+                            : isOcc
+                            ? { bg: 'bg-red-50/70', border: 'border-red-300 hover:border-red-500', badge: 'bg-red-200 text-red-950', dot: 'bg-red-500' }
+                            : isClean
+                            ? { bg: 'bg-amber-50/70', border: 'border-amber-300 hover:border-amber-500', badge: 'bg-amber-200 text-amber-950', dot: 'bg-amber-500' }
+                            : { bg: 'bg-purple-50/70', border: 'border-purple-300 hover:border-purple-500', badge: 'bg-purple-200 text-purple-950', dot: 'bg-purple-500' };
+
+                          return (
+                            <div
+                              key={bed.id}
+                              className={`p-3 rounded-xl border bg-white shadow-2xs transition-all duration-150 ${statusColors.border} ${
+                                canManageOperations ? 'hover:shadow-md cursor-pointer' : ''
+                              } space-y-2 relative group`}
+                              onClick={() => {
+                                if (canManageOperations) {
+                                  toggleBedStatus(bed.id);
+                                }
+                              }}
+                              title={
+                                canManageOperations
+                                  ? `Bed ${bed.bedNumber} (${bed.status}) — Click to toggle status`
+                                  : `Bed ${bed.bedNumber} (${bed.status})`
+                              }
+                            >
+                              {/* Top row: Bed Number & Status Badge */}
+                              <div className="flex items-center justify-between text-xs font-bold">
+                                <span className="font-mono text-slate-900 tracking-tight flex items-center gap-1">
+                                  {bed.bedNumber}
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 ${statusColors.badge}`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusColors.dot}`} />
+                                  {bed.status}
+                                </span>
+                              </div>
+
+                              {/* Patient or Bed Status Description */}
+                              <div className="min-h-[28px] text-[11px]">
+                                {isOcc ? (
+                                  <div className="space-y-0.5">
+                                    <div className="font-bold text-slate-800 truncate">
+                                      {bed.patientName || 'Assigned Patient'}
+                                    </div>
+                                    <div className="flex items-center gap-1 text-[10px]">
+                                      <span className={`px-1 rounded font-extrabold ${
+                                        bed.severity === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                                        bed.severity === 'HIGH' ? 'bg-orange-100 text-orange-800' :
+                                        'bg-yellow-100 text-yellow-800'
+                                      }`}>
+                                        {bed.severity || 'HIGH'}
+                                      </span>
+                                      {bed.assignedDoctor && (
+                                        <span className="text-slate-500 truncate">{bed.assignedDoctor}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : isRes ? (
+                                  <div className="text-purple-700 font-medium text-[10px]">
+                                    {bed.patientName || 'Pre-alert incoming'}
+                                  </div>
+                                ) : isClean ? (
+                                  <div className="text-amber-700 font-medium text-[10px] flex items-center gap-1">
+                                    <RefreshCw className="w-2.5 h-2.5 animate-spin" />
+                                    <span>Housekeeping bay</span>
+                                  </div>
+                                ) : (
+                                  <div className="text-emerald-700 font-medium text-[10px]">
+                                    Ready for intake
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Staff Quick Action Status Switcher Row */}
+                              {canManageOperations && (
+                                <div
+                                  className="pt-1.5 border-t border-slate-100 flex items-center justify-between gap-1 text-[9px] font-bold"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    <button
+                                      onClick={() => {
+                                        updateBedStatus(bed.id, 'Available');
+                                        addNotification({
+                                          title: 'Bed Updated',
+                                          message: `Bed ${bed.bedNumber} set to Available`,
+                                          type: 'system'
+                                        });
+                                      }}
+                                      className={`px-1 py-0.5 rounded ${
+                                        isAvail
+                                          ? 'bg-emerald-600 text-white font-extrabold shadow-2xs'
+                                          : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                                      }`}
+                                      title="Set to Available"
+                                    >
+                                      Avail
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        updateBedStatus(bed.id, 'Occupied');
+                                        addNotification({
+                                          title: 'Bed Updated',
+                                          message: `Bed ${bed.bedNumber} marked as Occupied`,
+                                          type: 'system'
+                                        });
+                                      }}
+                                      className={`px-1 py-0.5 rounded ${
+                                        isOcc
+                                          ? 'bg-red-600 text-white font-extrabold shadow-2xs'
+                                          : 'bg-red-50 text-red-800 hover:bg-red-100'
+                                      }`}
+                                      title="Set to Occupied"
+                                    >
+                                      Occ
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        updateBedStatus(bed.id, 'Cleaning');
+                                        addNotification({
+                                          title: 'Bed Updated',
+                                          message: `Bed ${bed.bedNumber} set to Cleaning`,
+                                          type: 'system'
+                                        });
+                                      }}
+                                      className={`px-1 py-0.5 rounded ${
+                                        isClean
+                                          ? 'bg-amber-600 text-white font-extrabold shadow-2xs'
+                                          : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                                      }`}
+                                      title="Set to Cleaning"
+                                    >
+                                      Clean
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        updateBedStatus(bed.id, 'Reserved');
+                                        addNotification({
+                                          title: 'Bed Updated',
+                                          message: `Bed ${bed.bedNumber} marked as Reserved`,
+                                          type: 'system'
+                                        });
+                                      }}
+                                      className={`px-1 py-0.5 rounded ${
+                                        isRes
+                                          ? 'bg-purple-600 text-white font-extrabold shadow-2xs'
+                                          : 'bg-purple-50 text-purple-800 hover:bg-purple-100'
+                                      }`}
+                                      title="Set to Reserved"
+                                    >
+                                      Res
+                                    </button>
+                                  </div>
+
+                                  <button
+                                    onClick={() => setEditingBed(bed)}
+                                    className="p-1 rounded text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition"
+                                    title="Edit patient assignment or bed details"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
-              }
-            })}
+              })}
           </div>
         </div>
       )}
@@ -903,6 +1825,65 @@ export const HospitalCommandCenterPage: React.FC = () => {
         preAlert={selectedPreAlertForModal}
         isOpen={!!selectedPreAlertForModal}
         onClose={() => setSelectedPreAlertForModal(null)}
+      />
+
+      {/* Quick Bed Capacity Editor Modal for Staff */}
+      {isBedEditModalOpen && primaryHospital && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-2xl p-6 shadow-2xl border border-slate-200 space-y-4 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <BedDouble className="w-5 h-5 text-brand-600" />
+                <h3 className="font-bold text-lg text-slate-900">
+                  Edit Bed Capacity — {primaryHospital.name}
+                </h3>
+              </div>
+              <button
+                onClick={() => setIsBedEditModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <HospitalOperationalDataEditor
+              hospital={primaryHospital}
+              staffToken={currentUser.staffToken}
+              onSuccess={() => setIsBedEditModalOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Individual Bed Management Modal for Staff */}
+      <BedManagementModal
+        bed={editingBed}
+        isOpen={!!editingBed}
+        onClose={() => setEditingBed(null)}
+        onSave={(bedId, status, patientName, severity, assignedDoctor) => {
+          updateBedStatus(bedId, status, patientName, severity);
+          addNotification({
+            title: 'Bed State Saved',
+            message: `Bed allocation and status updated successfully.`,
+            type: 'system'
+          });
+        }}
+      />
+
+      {/* Ward State Modal for Entire Ward Batch State Transition */}
+      <WardStateModal
+        wardType={wardActionTarget}
+        hospitalName={primaryHospital?.name || 'Hospital'}
+        bedsInWard={wardActionTarget ? hospitalBeds.filter(b => b.wardType === wardActionTarget) : []}
+        isOpen={!!wardActionTarget}
+        onClose={() => setWardActionTarget(null)}
+        onApplyWardState={(wardType, newBedStatus) => {
+          updateWardBedStatus(wardType, newBedStatus);
+          addNotification({
+            title: `${wardType} Ward State Changed`,
+            message: `All beds in ${wardType} Ward set to ${newBedStatus}`,
+            type: 'system'
+          });
+        }}
       />
     </div>
   );
