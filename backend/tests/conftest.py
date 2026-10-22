@@ -15,8 +15,8 @@ _db_path = os.path.join(_scratch_dir, "test.db").replace(os.sep, "/")
 os.environ["DATABASE_URL"] = f"sqlite:///{_db_path}"
 # Tests always get a private signing key; an env value (or .env) wins via
 # setdefault semantics, and the app's insecure-production fail-fast never
-# fires under pytest even when backend/.env is absent.
-os.environ.setdefault("SECRET_KEY", "test-only-secret-key")
+os.environ.setdefault("SECRET_KEY", "test-only-secret-key-that-is-at-least-32-characters-long")
+os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402

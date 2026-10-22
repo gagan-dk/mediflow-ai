@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { COMPREHENSIVE_SAFETY_NOTICE } from '../services/prioritizationEngine';
 
 interface DisclaimerBannerProps {
@@ -10,31 +10,37 @@ interface DisclaimerBannerProps {
 export const DisclaimerBanner: React.FC<DisclaimerBannerProps> = ({ compact = false, className = '' }) => {
   if (compact) {
     return (
-      <div className={`flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-900 rounded-lg text-xs font-medium ${className}`}>
-        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+      <div
+        role="note"
+        aria-label="Clinical disclaimer"
+        className={`flex items-center gap-2.5 px-3.5 py-2.5 bg-[#fff4db] border border-[#fde68a] text-[#5a3b00] rounded-lg text-xs leading-relaxed ${className}`}
+      >
+        <Info className="w-4 h-4 text-[#5a3b00] shrink-0" aria-hidden="true" />
         <span>
-          <strong>Prototype Disclaimer:</strong> AI-assisted prioritization — not a medical diagnosis. In a real emergency, call 112/911 immediately.
+          <strong>General information only. Not a diagnosis.</strong> In a medical emergency, call <strong>112</strong> immediately.
         </span>
       </div>
     );
   }
 
   return (
-    <div className={`p-4 bg-gradient-to-r from-amber-50 via-sky-50 to-amber-50 border border-amber-200/80 rounded-xl text-slate-800 shadow-sm ${className}`}>
-      <div className="flex items-start gap-3">
-        <div className="p-2 bg-amber-100 text-amber-700 rounded-lg shrink-0 mt-0.5">
-          <ShieldCheck className="w-5 h-5" />
-        </div>
+    <div
+      role="note"
+      aria-label="Safety and regulatory notice"
+      className={`p-4 bg-[#fff4db] border border-[#fde68a] rounded-lg text-[#5a3b00] space-y-1.5 ${className}`}
+    >
+      <div className="flex items-start gap-2.5">
+        <Info className="w-4 h-4 text-[#5a3b00] shrink-0 mt-0.5" aria-hidden="true" />
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-amber-800">
-              Safety & Regulatory Notice
-            </h4>
-            <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-200/60 text-amber-900 rounded-full">
-              SIH Healthcare Prototype
+            <span className="text-xs font-bold uppercase tracking-wider text-[#5a3b00]">
+              General Information • Not a Diagnosis
+            </span>
+            <span className="px-1.5 py-0.2 bg-[#fde68a] text-[#5a3b00] text-[10px] font-semibold rounded">
+              Clinical Advisory
             </span>
           </div>
-          <p className="text-xs text-slate-600 leading-relaxed">
+          <p className="text-xs text-[#5a3b00]/90 leading-relaxed">
             {COMPREHENSIVE_SAFETY_NOTICE}
           </p>
         </div>

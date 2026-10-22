@@ -127,7 +127,10 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center gap-3">
-                <span>{severity === 'CRITICAL' ? '🔴 CRITICAL' : severity === 'HIGH' ? '🟠 HIGH URGENCY' : severity === 'MODERATE' ? '🟡 MODERATE' : '🟢 LOW RISK'}</span>
+                <span className="inline-flex items-center gap-2.5">
+                  <span className={`w-3.5 h-3.5 rounded-full ${severity === 'CRITICAL' ? 'bg-red-400 animate-pulse' : severity === 'HIGH' ? 'bg-amber-400' : severity === 'MODERATE' ? 'bg-yellow-400' : 'bg-emerald-400'}`} />
+                  <span>{severity === 'CRITICAL' ? 'CRITICAL (ESI-1)' : severity === 'HIGH' ? 'HIGH URGENCY (ESI-2)' : severity === 'MODERATE' ? 'MODERATE (ESI-3)' : 'LOW ACUTE RISK (ESI-4/5)'}</span>
+                </span>
               </h1>
               <p className="text-xs sm:text-sm text-white/90 max-w-xl leading-relaxed">
                 {assessmentResult?.reasoningSummary || 'Immediate emergency resuscitation and critical care admission recommended.'}
@@ -300,8 +303,9 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
                 <div className="text-lg font-bold text-purple-700 font-mono">
                   {recommendedHospital.availableICUBeds} Beds Open
                 </div>
-                <div className="text-[11px] text-emerald-600 font-semibold">
-                  ICU Bed Ready ✓
+                <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-semibold">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>ICU Bed Ready</span>
                 </div>
               </div>
 
@@ -383,19 +387,19 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
           </div>
 
           {/* Action Footer Bar */}
-          <div className="p-6 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-4">
+          <div className="p-6 bg-[#f7f9f9] border-t border-[#dce4e3] flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <a
                 href="tel:112"
-                className="flex items-center gap-2 px-4 py-3 bg-red-100 hover:bg-red-200 text-red-800 text-xs font-bold rounded-xl transition"
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#fdecea] hover:bg-red-100 text-[#b42318] text-xs font-semibold rounded-lg border border-red-200 transition-colors"
               >
-                <PhoneCall className="w-4 h-4 text-red-600" />
+                <PhoneCall className="w-4 h-4 text-[#b42318]" />
                 <span>Call Emergency 112</span>
               </a>
 
               <button
                 onClick={() => navigate('/finder')}
-                className="px-4 py-3 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl transition"
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 border border-[#dce4e3] text-[#14201f] text-xs font-semibold rounded-lg transition-colors"
               >
                 Compare All Hospitals
               </button>
@@ -404,21 +408,21 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={handleSendPreAlert}
-                className={`flex items-center gap-2 px-5 py-3 text-xs font-bold rounded-xl shadow-md transition transform active:scale-95 ${
+                className={`flex items-center gap-2 px-5 py-2.5 text-xs font-semibold rounded-lg transition-colors min-h-[40px] ${
                   preAlertSentSuccess
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white'
+                    ? 'bg-[#1b6e3c] text-white'
+                    : 'bg-[#b42318] hover:bg-red-700 text-white shadow-xs'
                 }`}
               >
                 {preAlertSentSuccess ? (
                   <>
                     <Check className="w-4 h-4" />
-                    <span>Pre-Alert Transmitted ✓</span>
+                    <span>Pre-Alert Transmitted</span>
                   </>
                 ) : (
                   <>
-                    <ShieldAlert className="w-4 h-4 animate-pulse" />
-                    <span>🚨 Send Hospital Pre-Alert</span>
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>Send Hospital Pre-Alert</span>
                   </>
                 )}
               </button>
@@ -426,12 +430,12 @@ export const AssessmentResultPage: React.FC<AssessmentResultPageProps> = ({ navi
               <button
                 onClick={handleSelectHospitalAndQueue}
                 disabled={selectingHospital || emergencyLoading}
-                className={`flex items-center gap-2 px-6 py-3 text-xs font-bold rounded-xl shadow-lg transition transform active:scale-95 ${
+                className={`flex items-center gap-2 px-5 py-2.5 text-xs font-semibold rounded-lg transition-colors min-h-[40px] ${
                   selectingHospital || emergencyLoading
-                    ? 'bg-slate-400 text-white cursor-not-allowed shadow-none'
+                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     : currentQueueToken
-                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-emerald-500/25'
-                    : 'bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white shadow-brand-500/25'
+                    ? 'bg-[#1b6e3c] hover:bg-emerald-700 text-white shadow-xs'
+                    : 'bg-[#0f766e] hover:bg-[#0b5f58] text-white shadow-xs'
                 }`}
               >
                 {selectingHospital || emergencyLoading ? (

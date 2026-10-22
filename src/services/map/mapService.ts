@@ -69,7 +69,7 @@ export class MapService {
       if (!isConfigured('geoapify') && !isConfigured('locationiq')) {
         message = 'Map provider not configured. Add VITE_GEOAPIFY_API_KEY or VITE_LOCATIONIQ_API_KEY to your environment.';
       } else if (geo.status === 'exhausted' && iq.status === 'exhausted') {
-        message = "Today's free map-service limit has been reached. Live map search is temporarily unavailable. Showing available MediFlow-synchronized hospital information.";
+        message = "Today's free map-service limit has been reached. Live map search is temporarily unavailable. Showing available MediFlash AI-synchronized hospital information.";
       } else if (geo.status === 'exhausted') {
         message = 'Geoapify daily free usage limit reached. Switching to LocationIQ.';
       } else if (iq.status === 'exhausted') {

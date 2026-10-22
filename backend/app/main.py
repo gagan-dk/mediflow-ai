@@ -10,7 +10,10 @@ from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from slowapi.errors import RateLimitExceeded
+
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.logging import setup_logging
 
 # Install the structured logger class and handlers BEFORE any router module
@@ -33,12 +36,14 @@ app = FastAPI(
     description="Backend API for the MediFlow emergency triage platform.",
 )
 
+app.state.limiter = limiter
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
 )
 
 app.include_router(hospitals_router)
@@ -47,11 +52,11 @@ app.include_router(auth_router)
 app.include_router(admin_router)
 app.include_router(emergencies_router)
 
-if not settings.debug and settings.secret_key == "change-me-in-production":
+if not settings.debug and (settings.secret_key == "change-me-in-production" or len(settings.secret_key) < 32):
     raise RuntimeError(
-        "Refusing to start: SECRET_KEY is the insecure default "
-        "'change-me-in-production'. Set a strong random SECRET_KEY via the "
-        "environment before starting in non-debug mode."
+        "Refusing to start: SECRET_KEY is either the insecure default "
+        "'change-me-in-production' or shorter than 32 characters. Set a strong random SECRET_KEY "
+        "(at least 32 characters) via the environment before starting in non-debug mode."
     )
 
 
@@ -71,6 +76,15 @@ _STATUS_CODES = {
 
 def _error_envelope(code: str, message: str, details=None) -> dict:
     return {"error": {"code": code, "message": message, "details": details}}
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    logger.warning("rate limit exceeded", extra={"path": request.url.path})
+    return JSONResponse(
+        status_code=429,
+        content=_error_envelope("rate_limited", f"Rate limit exceeded: {exc.detail}", None),
+    )
 
 
 @app.exception_handler(StarletteHTTPException)

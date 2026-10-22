@@ -9,7 +9,7 @@ interface FooterProps {
 export const Footer: React.FC<FooterProps> = ({ navigate }) => {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-10 py-12 space-y-8">
         {/* Main Grid */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Col 1: Brand Info */}
@@ -18,17 +18,17 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
               <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-brand-500 text-white shadow-md">
                 <Activity className="w-4 h-4" />
               </div>
-              <span className="font-extrabold text-lg text-white tracking-tight">MediFlow AI</span>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30 rounded">
-                SIH Prototype
+              <span className="font-extrabold text-lg text-white tracking-tight">MediFlash AI</span>
+              <span className="px-2 py-0.5 text-[10px] font-bold bg-brand-500/20 text-brand-300 border border-brand-500/30 rounded uppercase tracking-wider">
+                Beta
               </span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-lg">
               Smart Hospital Queue & Emergency Routing System. Optimizing emergency department throughput, dynamic resource allocation, and patient survival rates with intelligent facility matching.
             </p>
-            <div className="flex items-center gap-2 text-xs text-amber-400 font-semibold">
-              <Award className="w-4 h-4" />
-              <span>Developed for Smart India Hackathon (Healthcare & Emergency Technology)</span>
+            <div className="flex items-center gap-2 text-xs text-brand-400 font-semibold">
+              <ShieldCheck className="w-4 h-4" />
+              <span>Advanced Emergency Routing & Clinical Decision Support</span>
             </div>
           </div>
 
@@ -66,7 +66,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
 
           {/* Col 3: Presentation & Simulation */}
           <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-white">SIH Presentation</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-white">Analytics & Simulation</h4>
             <ul className="space-y-1.5 text-xs text-slate-400">
               <li>
                 <button onClick={() => navigate('/insights')} className="hover:text-brand-300 transition flex items-center gap-1">
@@ -97,7 +97,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
         <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-slate-400 leading-relaxed flex items-start gap-3">
           <ShieldCheck className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <strong className="text-slate-200">Prototype Disclaimer & Safety Compliance:</strong>
+            <strong className="text-slate-200">Safety Notice & Clinical Compliance:</strong>
             <p>
               {COMPREHENSIVE_SAFETY_NOTICE}
             </p>
@@ -107,7 +107,7 @@ export const Footer: React.FC<FooterProps> = ({ navigate }) => {
         {/* Bottom bar */}
         <div className="pt-6 border-t border-slate-800 flex flex-wrap items-center justify-between gap-4 text-xs text-slate-500">
           <div>
-            © {new Date().getFullYear()} MediFlow AI. Prototype developed for Smart India Hackathon.
+            © {new Date().getFullYear()} MediFlash AI Beta. All rights reserved.
           </div>
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1">

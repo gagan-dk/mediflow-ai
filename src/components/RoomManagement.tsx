@@ -102,8 +102,9 @@ export const RoomManagement: React.FC<RoomManagementProps> = ({
   const getStatusBadge = (status: RoomStatus) => {
     const colors = ROOM_STATUS_COLORS[status];
     return (
-      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}>
-        {colors.icon} {status}
+      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${colors.bg} ${colors.text} ${colors.border}`}>
+        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${colors.dot}`} aria-hidden="true" />
+        {status}
       </span>
     );
   };

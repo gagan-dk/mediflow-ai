@@ -379,3 +379,51 @@ def test_cors_allows_alt_local_host_origin(client) -> None:
         },
     )
     assert resp.headers.get("access-control-allow-origin") == "http://127.0.0.1:3000"
+
+
+def test_cors_rejects_unallowed_method(client) -> None:
+    resp = client.options(
+        "/api/health",
+        headers={
+            "Origin": "http://localhost:3000",
+            "Access-Control-Request-Method": "TRACE",
+        },
+    )
+    # TRACE is not in allowed methods
+    assert resp.headers.get("access-control-allow-methods") is None or "TRACE" not in resp.headers.get("access-control-allow-methods", "")
+
+
+def test_secret_key_minimum_length_validation() -> None:
+    from pydantic import ValidationError
+    from app.core.config import Settings
+
+    with pytest.raises(ValidationError):
+        Settings(secret_key="too-short-key")
+
+    s_default = Settings(secret_key="change-me-in-production")
+    assert s_default.secret_key == "change-me-in-production"
+
+    s_valid = Settings(secret_key="a" * 32)
+    assert len(s_valid.secret_key) >= 32
+
+
+def test_rate_limiting_on_auth_login(client) -> None:
+    from app.core.limiter import limiter
+
+    limiter.enabled = True
+    limiter.reset()
+    try:
+        status_codes = []
+        for _ in range(10):
+            resp = client.post("/api/auth/login", json={"email": "rate_limit_test@mediflow.ai", "password": "wrong"})
+            status_codes.append(resp.status_code)
+
+        assert 429 in status_codes
+        resp_429 = client.post("/api/auth/login", json={"email": "rate_limit_test@mediflow.ai", "password": "wrong"})
+        assert resp_429.status_code == 429
+        data = resp_429.json()
+        assert "error" in data
+        assert data["error"]["code"] == "rate_limited"
+    finally:
+        limiter.enabled = False
+        limiter.reset()

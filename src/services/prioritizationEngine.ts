@@ -2,8 +2,8 @@ import { EmergencyAssessmentInput, AssessmentResult } from '../types/prioritizat
 import { SeverityLevel, RequiredFacilities } from '../types/hospital';
 import { INITIAL_SYMPTOMS } from './mockData';
 
-export const SAFETY_DISCLAIMER = "AI-assisted prioritization — not a medical diagnosis. This prototype does not replace professional medical evaluation.";
-export const COMPREHENSIVE_SAFETY_NOTICE = "MediFlow AI is an AI-assisted emergency prioritization and hospital coordination prototype. It does not diagnose medical conditions or replace qualified medical professionals. In a real emergency, users should seek immediate professional medical assistance.";
+export const SAFETY_DISCLAIMER = "AI-assisted prioritization — not a medical diagnosis. In a real emergency, call 112 immediately. This tool does not replace professional medical evaluation.";
+export const COMPREHENSIVE_SAFETY_NOTICE = "MediFlash AI is an AI-assisted emergency prioritization and hospital coordination system. It does not diagnose medical conditions or replace qualified medical professionals. In a real emergency, call 112 (National Emergency) or 108 (National Ambulance) immediately. Seek professional medical assistance right away.";
 
 /**
  * Emergency Prioritization Engine (formerly AI Triage Service)

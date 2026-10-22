@@ -236,11 +236,11 @@ export const HospitalCommandCenterPage: React.FC = () => {
         )}
 
         {/* Top Action Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-slate-200 rounded-2xl shadow-xs text-xs font-semibold">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-white border border-[#dce4e3] rounded-lg shadow-2xs text-xs font-semibold">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-3.5 py-1.5 rounded-xl transition ${
-              activeTab === 'overview' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3.5 py-1.5 rounded-md transition-colors ${
+              activeTab === 'overview' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-[#4b5b5a] hover:text-[#14201f]'
             }`}
           >
             Overview
@@ -248,24 +248,24 @@ export const HospitalCommandCenterPage: React.FC = () => {
 
           <button
             onClick={() => setActiveTab('queue')}
-            className={`px-3.5 py-1.5 rounded-xl transition ${
-              activeTab === 'queue' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3.5 py-1.5 rounded-md transition-colors ${
+              activeTab === 'queue' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-[#4b5b5a] hover:text-[#14201f]'
             }`}
           >
             ER Queue ({displayQueue.length})
           </button>
           <button
             onClick={() => setActiveTab('beds')}
-            className={`px-3.5 py-1.5 rounded-xl transition ${
-              activeTab === 'beds' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3.5 py-1.5 rounded-md transition-colors ${
+              activeTab === 'beds' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-[#4b5b5a] hover:text-[#14201f]'
             }`}
           >
             Bed Matrix ({beds.length})
           </button>
           <button
             onClick={() => setActiveTab('analytics')}
-            className={`px-3.5 py-1.5 rounded-xl transition ${
-              activeTab === 'analytics' ? 'bg-brand-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+            className={`px-3.5 py-1.5 rounded-md transition-colors ${
+              activeTab === 'analytics' ? 'bg-[#0f766e] text-white shadow-xs' : 'text-[#4b5b5a] hover:text-[#14201f]'
             }`}
           >
             Analytics
@@ -277,71 +277,71 @@ export const HospitalCommandCenterPage: React.FC = () => {
 
       {/* Top 6 KPI Metric Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             Total Patients
-            <Users className="w-3.5 h-3.5 text-brand-600" />
+            <Users className="w-3.5 h-3.5 text-[#0f766e]" />
           </span>
-          <div className="text-2xl font-extrabold text-slate-900 font-mono">{opDataAvailable ? totalQueuePatients : N}</div>
-          <span className="text-[10px] text-slate-500 font-semibold font-mono">{opDataAvailable ? `${totalQueuePatients} registered` : '—'}</span>
+          <div className="text-2xl font-extrabold text-[#14201f] font-mono">{opDataAvailable ? totalQueuePatients : N}</div>
+          <span className="text-[10px] text-[#4b5b5a] font-semibold font-mono">{opDataAvailable ? `${totalQueuePatients} registered` : '—'}</span>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             Emergency Cases
-            <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+            <ShieldAlert className="w-3.5 h-3.5 text-[#b42318]" />
           </span>
-          <div className="text-2xl font-extrabold text-red-600 font-mono">{activeEmergencyCases}</div>
-          <span className="text-[10px] text-red-600 font-semibold font-mono">{opDataAvailable ? `${criticalCount} Critical Active` : '—'}</span>
+          <div className="text-2xl font-extrabold text-[#b42318] font-mono">{activeEmergencyCases}</div>
+          <span className="text-[10px] text-[#b42318] font-semibold font-mono">{opDataAvailable ? `${criticalCount} Critical Active` : '—'}</span>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             Available Beds
-            <BedDouble className="w-3.5 h-3.5 text-brand-600" />
+            <BedDouble className="w-3.5 h-3.5 text-[#0f766e]" />
           </span>
-          <div className="text-2xl font-extrabold text-brand-700 font-mono">{opDataAvailable ? `${availableBeds} / ${totalBeds}` : N}</div>
-          <span className="text-[10px] text-slate-500">{opDataAvailable ? `${occupancyPercent}% Occupancy` : '—'}</span>
+          <div className="text-2xl font-extrabold text-[#0b5f58] font-mono">{opDataAvailable ? `${availableBeds} / ${totalBeds}` : N}</div>
+          <span className="text-[10px] text-[#4b5b5a]">{opDataAvailable ? `${occupancyPercent}% Occupancy` : '—'}</span>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             ICU Beds Open
-            <BedDouble className="w-3.5 h-3.5 text-purple-600" />
+            <BedDouble className="w-3.5 h-3.5 text-[#0f766e]" />
           </span>
-          <div className="text-2xl font-extrabold text-purple-700 font-mono">{opDataAvailable ? `${availableICUBeds} / ${totalICUBeds}` : N}</div>
-          <span className="text-[10px] text-emerald-600 font-semibold">{opDataAvailable ? `${reservedBeds} Reserved` : '—'}</span>
+          <div className="text-2xl font-extrabold text-[#0f766e] font-mono">{opDataAvailable ? `${availableICUBeds} / ${totalICUBeds}` : N}</div>
+          <span className="text-[10px] text-[#1b6e3c] font-semibold">{opDataAvailable ? `${reservedBeds} Reserved` : '—'}</span>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             Average Wait
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            <Clock className="w-3.5 h-3.5 text-[#5a3b00]" />
           </span>
-          <div className="text-2xl font-extrabold text-amber-600 font-mono">{opDataAvailable ? `${avgWait}m` : N}</div>
-          <span className="text-[10px] text-slate-500 font-semibold">—</span>
+          <div className="text-2xl font-extrabold text-[#5a3b00] font-mono">{opDataAvailable ? `${avgWait}m` : N}</div>
+          <span className="text-[10px] text-[#4b5b5a] font-semibold">—</span>
         </div>
 
-        <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-1">
-          <span className="text-[11px] text-slate-500 font-medium flex items-center justify-between">
+        <div className="p-4 bg-white rounded-xl border border-[#dce4e3] shadow-xs space-y-1">
+          <span className="text-[11px] text-[#4b5b5a] font-medium flex items-center justify-between">
             Ambulances Ready
-            <Truck className="w-3.5 h-3.5 text-emerald-600" />
+            <Truck className="w-3.5 h-3.5 text-[#1b6e3c]" />
           </span>
-          <div className="text-2xl font-extrabold text-emerald-700 font-mono">{ambulances.filter(a => a.status === 'Available').length}</div>
-          <span className="text-[10px] text-slate-500 font-mono">{ambulancesEnRoute} En Route</span>
+          <div className="text-2xl font-extrabold text-[#1b6e3c] font-mono">{ambulances.filter(a => a.status === 'Available').length}</div>
+          <span className="text-[10px] text-[#4b5b5a] font-mono">{ambulancesEnRoute} En Route</span>
         </div>
       </div>
 
       {/* Regional Emergency Load Balancing Card */}
-      <div className="p-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl shadow-lg space-y-4">
+      <div className="p-5 bg-white border border-[#dce4e3] text-[#14201f] rounded-xl shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
-            <h3 className="font-bold text-sm text-white">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#1b6e3c] animate-pulse" />
+            <h3 className="font-bold text-sm text-[#14201f]">
               Regional Healthcare Load Balancing (Bangalore Metropolitan Emergency Network)
             </h3>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">
+          <span className="text-[10px] text-[#4b5b5a] font-mono">
             * Simulated prototype telemetry
           </span>
         </div>
@@ -352,9 +352,9 @@ export const HospitalCommandCenterPage: React.FC = () => {
             const isModerate = hosp.currentERLoadPercent > 60 && hosp.currentERLoadPercent <= 85;
 
             return (
-              <div key={hosp.id} className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-2">
+              <div key={hosp.id} className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="font-bold truncate text-slate-200" title={hosp.name}>
+                  <span className="font-bold truncate text-[#14201f]" title={hosp.name}>
                     {hosp.name.split(' ')[0]}
                   </span>
                   <span className={`w-2.5 h-2.5 rounded-full ${
@@ -479,7 +479,7 @@ export const HospitalCommandCenterPage: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-sm">
-                  🚨 Incoming Emergency Pre-Alerts ({preAlerts.length} Active)
+                  Incoming Emergency Pre-Alerts ({preAlerts.length} Active)
                 </h3>
                 <p className="text-xs text-slate-500">
                   Pre-hospital telemetry feed. Coordinate ICU reservation and trauma room allocation prior to arrival.

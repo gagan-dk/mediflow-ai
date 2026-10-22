@@ -248,76 +248,81 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
       {/* Safety Notice */}
       <DisclaimerBanner />
 
-      {/* 1-Click Scenario Presets Bar */}
-      <div className="p-4 bg-gradient-to-r from-slate-900 to-brand-950 text-white rounded-2xl shadow-lg space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-            <Zap className="w-3.5 h-3.5" /> Fast Demo Presets (1-Click Fill)
+      {/* 1-Click Clinical Case Presets Bar */}
+      <div className="p-4 bg-white rounded-xl shadow-xs border border-[#dce4e3] space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-[#0b5f58] flex items-center gap-1.5">
+            <Activity className="w-3.5 h-3.5" /> Clinical Triage Profiles
           </span>
-          <span className="text-[11px] text-slate-400">Click to autofill clinical scenarios</span>
+          <span className="text-[11px] text-[#4b5b5a]">Autofill verified clinical test profiles</span>
         </div>
         <div className="flex flex-wrap gap-2 pt-1">
           <button
             type="button"
             onClick={() => applyPreset('cardiac')}
-            className="px-3 py-1.5 bg-red-600/80 hover:bg-red-600 text-white text-xs font-bold rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dce4e3] hover:border-[#0f766e] hover:text-[#0b5f58] text-[#14201f] text-xs font-medium rounded-lg transition-colors min-h-[36px]"
           >
-            🫀 48yo Cardiac Arrest / Chest Pain
+            <HeartPulse className="w-3.5 h-3.5 text-[#b42318]" />
+            <span>Cardiac Arrest / Chest Pain · 48y</span>
           </button>
           <button
             type="button"
             onClick={() => applyPreset('asthma')}
-            className="px-3 py-1.5 bg-sky-600/80 hover:bg-sky-600 text-white text-xs font-bold rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dce4e3] hover:border-[#0f766e] hover:text-[#0b5f58] text-[#14201f] text-xs font-medium rounded-lg transition-colors min-h-[36px]"
           >
-            🫁 26yo Severe Hypoxia (SpO2 88%)
+            <Wind className="w-3.5 h-3.5 text-[#0f766e]" />
+            <span>Severe Hypoxia (SpO2 88%) · 26y</span>
           </button>
           <button
             type="button"
             onClick={() => applyPreset('stroke')}
-            className="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-600 text-white text-xs font-bold rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dce4e3] hover:border-[#0f766e] hover:text-[#0b5f58] text-[#14201f] text-xs font-medium rounded-lg transition-colors min-h-[36px]"
           >
-            🧠 68yo Acute Stroke (FAST)
+            <Brain className="w-3.5 h-3.5 text-[#0b5f58]" />
+            <span>Acute Stroke (FAST Protocol) · 68y</span>
           </button>
           <button
             type="button"
             onClick={() => applyPreset('trauma')}
-            className="px-3 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white text-xs font-bold rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dce4e3] hover:border-[#0f766e] hover:text-[#0b5f58] text-[#14201f] text-xs font-medium rounded-lg transition-colors min-h-[36px]"
           >
-            🦴 29yo Open Fracture Trauma
+            <Bone className="w-3.5 h-3.5 text-[#5a3b00]" />
+            <span>Open Fracture Trauma · 29y</span>
           </button>
           <button
             type="button"
             onClick={() => applyPreset('fever')}
-            className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#dce4e3] hover:border-[#0f766e] hover:text-[#0b5f58] text-[#14201f] text-xs font-medium rounded-lg transition-colors min-h-[36px]"
           >
-            🌡️ 22yo High Fever / Moderate
+            <Thermometer className="w-3.5 h-3.5 text-[#4b5b5a]" />
+            <span>Acute Pyrexia / Moderate · 22y</span>
           </button>
         </div>
       </div>
 
       {/* Main Assessment Form */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-8">
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-[#dce4e3] shadow-xs p-6 sm:p-8 space-y-8">
         {/* Section 1: Patient Information */}
         <div className="space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-2">
-            <User className="w-4 h-4 text-brand-600" />
+          <h3 className="text-sm font-bold uppercase tracking-wider text-[#14201f] flex items-center gap-2 border-b border-[#dce4e3] pb-2">
+            <User className="w-4 h-4 text-[#0f766e]" />
             1. Patient Demographics & Location
           </h3>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Patient Full Name</label>
+              <label className="text-xs font-semibold text-[#14201f]">Patient Full Name</label>
               <input
                 type="text"
                 value={patientName}
                 onChange={e => setPatientName(e.target.value)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] placeholder:text-[#6b7c7a] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] transition-colors"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Age (Years)</label>
+              <label className="text-xs font-semibold text-[#14201f]">Age (Years)</label>
               <input
                 type="number"
                 min="0"
@@ -325,16 +330,16 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
                 value={age}
                 onChange={e => setAge(parseInt(e.target.value) || 0)}
                 required
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] placeholder:text-[#6b7c7a] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] transition-colors"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-700">Gender</label>
+              <label className="text-xs font-semibold text-[#14201f]">Gender</label>
               <select
                 value={gender}
                 onChange={e => setGender(e.target.value as 'male' | 'female' | 'other')}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+                className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] transition-colors"
               >
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -344,8 +349,8 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
           </div>
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-brand-600" />
+            <label className="text-xs font-semibold text-[#14201f] flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-[#0f766e]" />
               Current Patient Location / Landmark
             </label>
             <input
@@ -353,7 +358,7 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
               value={location}
               onChange={e => setLocation(e.target.value)}
               required
-              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition"
+              className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] placeholder:text-[#6b7c7a] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e] transition-colors"
             />
           </div>
         </div>
@@ -603,24 +608,24 @@ export const EmergencyAssessmentPage: React.FC<EmergencyAssessmentPageProps> = (
         )}
 
         {/* Submit Action Button */}
-        <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-slate-500 text-center sm:text-left">
-            * Evaluates urgency risk (0-100) &amp; determines essential emergency facility requirements.
+        <div className="pt-4 border-t border-[#dce4e3] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-xs text-[#4b5b5a] text-center sm:text-left">
+            Evaluates urgency risk (ESI 1–5) &amp; determines required facility capabilities.
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-3.5 font-extrabold rounded-xl text-sm shadow-xl transition transform ${
+            className={`w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 font-semibold rounded-lg text-sm transition-colors shadow-xs ${
               isLoading
-                ? 'bg-slate-400 text-white cursor-not-allowed shadow-none'
-                : 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:from-red-700 hover:to-rose-700 text-white shadow-red-600/30 active:scale-95'
+                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                : 'bg-[#0f766e] hover:bg-[#0b5f58] text-white'
             }`}
           >
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Submitting Emergency Case…</span>
+                <span>Evaluating Case…</span>
               </>
             ) : (
               <>

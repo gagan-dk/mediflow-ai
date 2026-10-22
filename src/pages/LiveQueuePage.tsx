@@ -184,25 +184,25 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
           <button
             onClick={fetchBackendQueue}
             disabled={backendLoading}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs shadow-xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-[#dce4e3] text-[#14201f] font-semibold rounded-lg text-xs shadow-2xs transition-colors"
           >
             {backendLoading ? (
-              <Loader2 className="w-3.5 h-3.5 text-brand-600 animate-spin" />
+              <Loader2 className="w-3.5 h-3.5 text-[#0f766e] animate-spin" />
             ) : (
-              <RefreshCw className="w-3.5 h-3.5 text-brand-600" />
+              <RefreshCw className="w-3.5 h-3.5 text-[#0f766e]" />
             )}
             <span>Refresh Queue</span>
           </button>
           <button
             onClick={handleAdvanceQueue}
-            className="flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-bold rounded-xl text-xs shadow-xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-[#dce4e3] text-[#14201f] font-semibold rounded-lg text-xs shadow-2xs transition-colors"
           >
-            <RefreshCw className="w-3.5 h-3.5 text-brand-600" />
+            <RefreshCw className="w-3.5 h-3.5 text-[#0f766e]" />
             <span>Simulate Token Call</span>
           </button>
           <button
             onClick={() => navigate('/command-center')}
-            className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs shadow-md transition"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#0f766e] hover:bg-[#0b5f58] text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors"
           >
             <span>Staff Queue Console</span>
             <ArrowRight className="w-3.5 h-3.5" />
@@ -214,7 +214,7 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
 
       {/* Backend Error Banner */}
       {backendError && (
-        <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+        <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-800 flex-1">{backendError}</p>
           <button onClick={() => setBackendError(null)} className="text-amber-500 hover:text-amber-700">
@@ -225,29 +225,27 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
 
       {/* Patient Token Spotlight Banner */}
       {userToken && (
-        <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 relative overflow-hidden">
-          <div className="absolute right-0 top-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <div className="bg-white text-[#14201f] rounded-xl p-6 sm:p-7 shadow-xs border border-[#dce4e3] relative overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
             {/* Your Token Block */}
-            <div className="p-5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/15 space-y-2">
-              <div className="flex items-center justify-between text-xs text-brand-200">
+            <div className="p-5 bg-[#e6f2f1] rounded-lg border border-[#dce4e3] space-y-2">
+              <div className="flex items-center justify-between text-xs text-[#0b5f58]">
                 <span className="flex items-center gap-1.5 font-bold uppercase tracking-wider">
-                  <Ticket className="w-4 h-4 text-brand-400" /> Your Assigned Token
+                  <Ticket className="w-4 h-4 text-[#0f766e]" /> Your Assigned Token
                 </span>
-                <span className="px-2 py-0.5 bg-red-500 text-white rounded text-[10px] font-bold">
+                <span className="px-2 py-0.5 bg-[#b42318] text-white rounded text-[10px] font-bold">
                   {userToken.severity} PRIORITY
                 </span>
               </div>
-              <div className="text-4xl font-extrabold font-mono tracking-tight text-white">
+              <div className="text-4xl font-extrabold font-mono tracking-tight text-[#0f766e]">
                 {userToken.tokenNumber}
               </div>
-              <div className="text-xs text-slate-300">
-                Patient: <strong>{userToken.patientName}</strong> ({userToken.age}y)
+              <div className="text-xs text-[#4b5b5a]">
+                Patient: <strong className="text-[#14201f]">{userToken.patientName}</strong> ({userToken.age}y)
               </div>
               {hasBackendData && userBackendToken && (
-                <div className="text-[10px] text-slate-400 mt-1">
-                  Backend Status: <span className="text-emerald-400 font-semibold">{userBackendToken.status}</span>
+                <div className="text-[10px] text-[#4b5b5a] mt-1">
+                  Backend Status: <span className="text-[#1b6e3c] font-semibold">{userBackendToken.status}</span>
                 </div>
               )}
             </div>
@@ -255,22 +253,22 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
             {/* Current Serving & Position */}
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-400 font-medium">Currently Serving in Resus/ER:</span>
-                <span className="font-mono text-emerald-400 font-extrabold text-lg">
+                <span className="text-xs text-[#4b5b5a] font-medium">Currently Serving in Resus/ER:</span>
+                <span className="font-mono text-[#1b6e3c] font-extrabold text-lg">
                   {activeServing?.tokenNumber || '—'}
                 </span>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Patients Ahead</span>
-                  <span className="text-2xl font-extrabold text-amber-400 font-mono">
+                <div className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] text-center">
+                  <span className="text-[10px] text-[#4b5b5a] uppercase tracking-wider block">Patients Ahead</span>
+                  <span className="text-2xl font-extrabold text-[#5a3b00] font-mono">
                     {userToken.queuePosition}
                   </span>
                 </div>
-                <div className="p-3 bg-white/5 rounded-xl border border-white/10 text-center">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Estimated Wait</span>
-                  <span className="text-2xl font-extrabold text-sky-400 font-mono">
+                <div className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] text-center">
+                  <span className="text-[10px] text-[#4b5b5a] uppercase tracking-wider block">Estimated Wait</span>
+                  <span className="text-2xl font-extrabold text-[#0f766e] font-mono">
                     {userToken.estimatedWaitMinutes}m
                   </span>
                 </div>
@@ -278,20 +276,20 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
             </div>
 
             {/* Status Progression Card */}
-            <div className="p-4 bg-brand-600/20 backdrop-blur-md rounded-2xl border border-brand-400/30 space-y-3">
+            <div className="p-4 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-brand-200 uppercase tracking-wider">Queue Status</span>
-                <span className="px-2 py-0.5 bg-brand-500 text-white rounded text-[10px] font-bold animate-pulse">
+                <span className="text-xs font-bold text-[#14201f] uppercase tracking-wider">Queue Status</span>
+                <span className="px-2 py-0.5 bg-[#0f766e] text-white rounded text-[10px] font-bold">
                   {userToken.status}
                 </span>
               </div>
-              <p className="text-xs text-slate-300 leading-relaxed">
+              <p className="text-xs text-[#4b5b5a] leading-relaxed">
                 {userToken.severity === 'CRITICAL' 
                   ? 'High-priority emergency bypass. Staff alerted for immediate resuscitation bay transfer.'
                   : 'Your place in the emergency triage queue is dynamically secured with live telemetry.'}
               </p>
-              <div className="flex items-center gap-2 text-[11px] text-emerald-300 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="flex items-center gap-2 text-[11px] text-[#1b6e3c] font-semibold">
+                <CheckCircle2 className="w-3.5 h-3.5 text-[#1b6e3c]" />
                 <span>Assigned Room: {userToken.assignedRoom || 'Triage Waiting'}</span>
               </div>
             </div>
@@ -301,7 +299,7 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
 
       {/* Severity Breakdown Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-red-50 border border-red-200 rounded-2xl space-y-1">
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-red-800">
             <span>Critical (ESI-1)</span>
             <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
@@ -310,16 +308,16 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
           <div className="text-[11px] text-red-600 font-medium">Immediate admission</div>
         </div>
 
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-amber-800">
+        <div className="p-4 bg-[#fff4db] border border-[#dce4e3] rounded-xl space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-[#5a3b00]">
             <span>High Urgency (ESI-2)</span>
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-amber-700">{highCount} Patients</div>
-          <div className="text-[11px] text-amber-600 font-medium">&lt; 15 min wait</div>
+          <div className="text-2xl font-extrabold font-mono text-[#5a3b00]">{highCount} Patients</div>
+          <div className="text-[11px] text-[#5a3b00] font-medium">&lt; 15 min wait</div>
         </div>
 
-        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-2xl space-y-1">
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl space-y-1">
           <div className="flex items-center justify-between text-xs font-bold text-yellow-900">
             <span>Moderate (ESI-3)</span>
             <span className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
@@ -328,18 +326,18 @@ export const LiveQueuePage: React.FC<LiveQueuePageProps> = ({ navigate }) => {
           <div className="text-[11px] text-yellow-700 font-medium">~30 min evaluation</div>
         </div>
 
-        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl space-y-1">
-          <div className="flex items-center justify-between text-xs font-bold text-emerald-800">
+        <div className="p-4 bg-[#eef7ee] border border-[#1b6e3c]/20 rounded-xl space-y-1">
+          <div className="flex items-center justify-between text-xs font-bold text-[#1b6e3c]">
             <span>Low Acuity (ESI-4/5)</span>
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[#1b6e3c]" />
           </div>
-          <div className="text-2xl font-extrabold font-mono text-emerald-700">{lowCount} Patients</div>
-          <div className="text-[11px] text-emerald-600 font-medium">Stable routine queue</div>
+          <div className="text-2xl font-extrabold font-mono text-[#1b6e3c]">{lowCount} Patients</div>
+          <div className="text-[11px] text-[#1b6e3c] font-medium">Stable routine queue</div>
         </div>
       </div>
 
       {/* Real-time Queue Board Table */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4 p-6">
+      <div className="bg-white rounded-xl border border-[#dce4e3] shadow-xs overflow-hidden space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
           <div>
             <h3 className="font-bold text-slate-900 text-sm">Active Emergency Intake Queue</h3>

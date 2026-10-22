@@ -25,7 +25,7 @@ export const ReroutingAlertModal: React.FC = () => {
               <div className="text-xs uppercase font-bold tracking-wider text-red-100">
                 Automated Capacity Protection
               </div>
-              <h3 className="text-lg font-bold">⚠️ Hospital Capacity Changed — Auto Re-Route</h3>
+              <h3 className="text-lg font-bold">Hospital Capacity Re-Route Notice</h3>
             </div>
           </div>
           <button
@@ -66,7 +66,7 @@ export const ReroutingAlertModal: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span>Status:</span>
-                  <span className="font-semibold text-red-600">Capacity Critical ❌</span>
+                  <span className="font-semibold text-red-600">Capacity Saturated</span>
                 </div>
               </div>
             </div>
@@ -92,7 +92,7 @@ export const ReroutingAlertModal: React.FC = () => {
               <div className="text-xs space-y-1 text-slate-700 pt-2 border-t border-emerald-200/60">
                 <div className="flex justify-between">
                   <span>Available ICU Beds:</span>
-                  <span className="font-bold text-emerald-700">{rerouteData.newHospital.availableICUBeds} Beds Open ✓</span>
+                  <span className="font-bold text-emerald-700">{rerouteData.newHospital.availableICUBeds} Beds Open</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Estimated Travel Time:</span>

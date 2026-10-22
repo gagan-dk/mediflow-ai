@@ -348,7 +348,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<SystemNotification[]>([
     {
       id: 'notif-1',
-      title: 'MediFlow AI System Initialized',
+      title: 'MediFlash AI System Initialized',
       message: 'Emergency routing and capacity tracking systems active.',
       type: 'system',
       timestamp: '2 min ago',
@@ -365,7 +365,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (typeof window === 'undefined' || !navigator.geolocation) {
       console.warn('Geolocation not supported by this browser.');
       addNotification({
-        title: '❌ Location Error',
+        title: 'Location Error',
         message: 'Geolocation is not supported by this browser.',
         type: 'system'
       });
@@ -400,8 +400,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         isSimulated = true;
         
         addNotification({
-          title: '⚠️ Using Simulated Location',
-          message: 'GPS access unavailable. Falling back to Hackathon Demo Location (Bengaluru).',
+          title: 'Using Regional Default Location',
+          message: 'GPS access unavailable. Falling back to Bengaluru Regional Center.',
           type: 'system'
         });
       }
@@ -446,7 +446,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setHospitals(merged);
           setSelectedHospital(merged[0]);
           addNotification({
-            title: '📍 Live GPS Location Acquired',
+            title: 'Live GPS Location Acquired',
             message: `Current location: ${geoInfo.address}. Found ${nearbyHospitals.length} hospitals nearby (${discoverySource}).`,
             type: 'system'
           });
@@ -459,7 +459,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             message = status.message;
           }
           addNotification({
-            title: '📍 Location Acquired — No Hospitals Found',
+            title: 'Location Acquired — No Hospitals Found',
             message: `${message} Try searching by hospital name.`,
             type: 'system'
           });
@@ -468,7 +468,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       } catch (e) {
         console.error('Error fetching real hospitals:', e);
         addNotification({
-          title: '⚠️ Location Error',
+          title: 'Location Error',
           message: 'Failed to fetch hospital data. Please try again.',
           type: 'system'
         });
@@ -476,7 +476,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err: any) {
       console.warn('GPS location permission denied or timed out:', err.message);
       addNotification({
-        title: '⚠️ Location Permission Denied',
+        title: 'Location Permission Denied',
         message: 'Please enable location access to find nearby hospitals.',
         type: 'system'
       });
@@ -821,7 +821,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playEmergencyAlert();
 
     addNotification({
-      title: `🚨 PRE-ALERT TRANSMITTED: ${hospital.name}`,
+      title: `Pre-Alert Transmitted: ${hospital.name}`,
       message: `Emergency pre-alert for ${patientName} (${severity}) sent to ${hospital.name}. ETA: ${hospital.travelTimeMinutes}m.`,
       type: 'emergency'
     });
@@ -912,7 +912,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playEmergencyAlert();
 
     addNotification({
-      title: '🚑 Ambulance Dispatched',
+      title: 'Ambulance Dispatched',
       message: `Ambulance assigned for ${patientName}. En route to ${hosp.name}.`,
       type: 'ambulance'
     });
@@ -950,7 +950,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playChime();
 
     addNotification({
-      title: `🎫 Priority Queue Token Assigned: ${tokenNumber}`,
+      title: `Priority Queue Token Assigned: ${tokenNumber}`,
       message: `Token ${tokenNumber} registered at ${hosp.name}. Priority: ${severity}. Position: ${queuePosition}.`,
       type: 'queue'
     });
@@ -1115,7 +1115,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     soundFX.playWarningTone();
 
     addNotification({
-      title: '⚠️ Dynamic Hospital Re-Routing Triggered',
+      title: 'Dynamic Hospital Re-Routing Triggered',
       message: `${targetHosp.name} saturated. Automated reroute to ${nextBestHosp.name} initiated.`,
       type: 'reroute'
     });

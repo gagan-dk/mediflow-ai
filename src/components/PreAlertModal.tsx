@@ -52,7 +52,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
             </div>
             <div>
               <div className="text-[11px] font-bold uppercase tracking-wider text-red-100 flex items-center gap-2">
-                <span>🚨 INCOMING {preAlert.severity} PATIENT</span>
+                <span>INCOMING {preAlert.severity} PATIENT</span>
                 <span className="px-2 py-0.5 bg-white/25 text-white rounded text-[10px]">
                   ID: {preAlert.patientId}
                 </span>
@@ -183,7 +183,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
                   <BedDouble className="w-4 h-4 text-brand-600" />
                   <span className="font-semibold">2. Reserve Emergency / ICU Bed</span>
                 </div>
-                <span className="text-[10px] font-bold">{prep.icuReserved ? 'RESERVED ✓' : 'CLICK TO RESERVE'}</span>
+                <span className="text-[10px] font-bold">{prep.icuReserved ? 'RESERVED' : 'CLICK TO RESERVE'}</span>
               </button>
 
               {/* ER Room Assigned */}
@@ -197,7 +197,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
                   <DoorOpen className="w-4 h-4 text-brand-600" />
                   <span className="font-semibold">3. Assign Emergency Resuscitation Room</span>
                 </div>
-                <span className="text-[10px] font-bold">{prep.emergencyRoomAssigned ? 'ASSIGNED ✓' : 'ASSIGN ROOM'}</span>
+                <span className="text-[10px] font-bold">{prep.emergencyRoomAssigned ? 'ASSIGNED' : 'ASSIGN ROOM'}</span>
               </button>
 
               {/* Doctor Notified */}
@@ -211,7 +211,7 @@ export const PreAlertModal: React.FC<PreAlertModalProps> = ({ preAlert, isOpen, 
                   <UserCheck className="w-4 h-4 text-brand-600" />
                   <span className="font-semibold">4. Page Attending Physician</span>
                 </div>
-                <span className="text-[10px] font-bold">{prep.doctorNotified ? 'NOTIFIED ✓' : 'PAGE DOCTOR'}</span>
+                <span className="text-[10px] font-bold">{prep.doctorNotified ? 'NOTIFIED' : 'PAGE DOCTOR'}</span>
               </button>
             </div>
           </div>

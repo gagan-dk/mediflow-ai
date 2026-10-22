@@ -7,12 +7,13 @@ is registered. Access tokens are short-lived JWTs with configurable expiry.
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from app.api.deps import CurrentUser, Db
 from app.core.config import settings
+from app.core.limiter import limiter
 from app.core.security import create_access_token, hash_password, verify_password
 from app.models import User, UserRole
 from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserRead
@@ -28,7 +29,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
     status_code=status.HTTP_201_CREATED,
     summary="Register a patient account",
 )
-def register(payload: RegisterRequest, db: Db) -> UserRead:
+@limiter.limit(settings.rate_limit_auth)
+def register(request: Request, payload: RegisterRequest, db: Db) -> UserRead:
     """Create a patient account.
 
     Self-service registration only creates `PATIENT` accounts; staff and admin
@@ -68,7 +70,8 @@ def register(payload: RegisterRequest, db: Db) -> UserRead:
     response_model=TokenResponse,
     summary="Exchange credentials for an access token",
 )
-def login(payload: LoginRequest, db: Db) -> TokenResponse:
+@limiter.limit(settings.rate_limit_auth)
+def login(request: Request, payload: LoginRequest, db: Db) -> TokenResponse:
     """Validate credentials server-side and issue a JWT access token."""
     user = db.scalar(select(User).where(User.email == payload.email.lower()))
     if user is None or not verify_password(payload.password, user.password_hash):

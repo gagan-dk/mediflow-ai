@@ -2,39 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── Design Tokens (CSS Custom Properties - MediFlash Official Spec) ────── */
+:root {
+  /* Colour — Primary & Accents */
+  --color-primary:      #0f766e; /* 5.5:1 contrast against white */
+  --color-primary-text: #0b5f58; /* Links & active icons */
+  --color-primary-tint: #e6f2f1; /* Active state background */
+
+  /* Colour — Surface & Neutrals */
+  --color-surface:      #ffffff; /* Cards & modals */
+  --color-ground:       #f7f9f9; /* Page background */
+  --color-ink:          #14201f; /* Main body text */
+  --color-muted:        #4b5b5a; /* Secondary & helper text (7.1:1) */
+  --color-control-edge: #6b7c7a; /* Form inputs & control borders (4.4:1) */
+  --color-divider:      #dce4e3; /* Dividers & subtle borders */
+
+  /* Colour — Semantic Status */
+  --color-success:      #1b6e3c; /* 6.3:1 */
+  --color-success-bg:   #e6f4ea;
+  --color-warning-bg:   #fff4db;
+  --color-warning-text: #5a3b00;
+  --color-warning-border:#fde68a;
+  --color-error:        #b42318; /* 6.6:1 */
+  --color-error-tint:   #fdecea;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Spacing 4-point scale: 4 · 8 · 12 · 16 · 24 · 32 · 48 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Shape & Radius: 4 badges · 8 controls · 12 cards */
+  --radius-badge:   4px;
+  --radius-control: 8px;
+  --radius-card:    12px;
+  --radius-full:    9999px;
+
+  /* Focus ring: 2px primary, 2px offset on every control */
+  --focus-ring: 0 0 0 2px #ffffff, 0 0 0 4px #0f766e;
+
+  /* Motion: 150 to 250 ms fades and slides only */
+  --motion-fast: 150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-base: 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --motion-slow: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Base Layer ─────────────────────────────────────────────────────────── */
 @layer base {
   html {
     scroll-behavior: smooth;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+  }
+
+  /* Visible focus ring on all interactive elements */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-control);
+  }
+
+  :focus:not(:focus-visible) {
+    outline: none;
   }
 }
 
-/* ─── Dark Theme (activated via .dark on <html>) ───────────────────────────── */
+/* ─── Reduce Motion (ACC-01) ─────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Skip Navigation Link (ACC-06) ─────────────────────────────────────── */
+.skip-nav {
+  position: absolute;
+  top: -9999px;
+  left: 1rem;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: var(--color-primary-600);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: top var(--motion-fast);
+}
+
+.skip-nav:focus {
+  top: 1rem;
+}
+
+/* ─── Dark Theme (activated via .dark on <html>) ─────────────────────────── */
 .dark {
   color-scheme: dark;
+  --color-surface:        #1e293b;
+  --color-surface-subtle: #0f172a;
+  --color-border:         #334155;
+  --color-border-strong:  #475569;
+  --color-text-primary:   #f1f5f9;
+  --color-text-secondary: #cbd5e1;
+  --color-text-tertiary:  #64748b;
 }
 
 .dark body {
   @apply bg-slate-950 text-slate-100;
 }
 
-.dark ::-webkit-scrollbar-track {
-  background: #0f172a;
-}
+.dark ::-webkit-scrollbar-track  { background: #0f172a; }
+.dark ::-webkit-scrollbar-thumb  { background: #334155; }
+.dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-/* Glassmorphism & Custom Accents */
+/* ─── Glassmorphism Panels ───────────────────────────────────────────────── */
 .glass-panel {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
@@ -47,49 +146,30 @@
   -webkit-backdrop-filter: blur(12px);
 }
 
-/* Custom Animation Keyframes */
+/* ─── Animation Keyframes ────────────────────────────────────────────────── */
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn var(--motion-fast) forwards;
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20% { transform: translateX(-8px); }
-  40% { transform: translateX(8px); }
-  60% { transform: translateX(-5px); }
-  80% { transform: translateX(5px); }
+  0%,  100% { transform: translateX(0); }
+  20%        { transform: translateX(-8px); }
+  40%        { transform: translateX(8px); }
+  60%        { transform: translateX(-5px); }
+  80%        { transform: translateX(5px); }
 }
 
 .animate-shake {
   animation: shake 0.5s ease-in-out;
 }
 
-/* Custom Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: #f1f5f9;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
+/* ─── Custom Scrollbar ───────────────────────────────────────────────────── */
+::-webkit-scrollbar        { width: 6px; height: 6px; }
+::-webkit-scrollbar-track  { background: #f1f5f9; }
+::-webkit-scrollbar-thumb  { background: #cbd5e1; border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }

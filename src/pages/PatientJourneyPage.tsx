@@ -61,7 +61,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
     },
     {
       id: 'pre_alert_sent',
-      title: '🚨 Hospital Pre-Alert Transmitted',
+      title: 'Hospital Pre-Alert Transmitted',
       desc: `Live telemetry sent to ${hosp?.name || 'Hospital'}. Resource preparation initiated.`,
       time: '8 min ago',
       icon: HospitalIcon,
@@ -129,7 +129,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
         <div className="flex items-center gap-2">
           <button
             onClick={advanceJourneyStage}
-            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-600 to-sky-600 hover:from-brand-700 hover:to-sky-700 text-white font-bold rounded-xl text-xs shadow-md transition transform active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 bg-[#0f766e] hover:bg-[#0b5f58] text-white font-semibold rounded-lg text-xs shadow-2xs transition-colors active:scale-95"
           >
             <span>Simulate Advance Stage</span>
             <ChevronRight className="w-4 h-4" />
@@ -140,68 +140,68 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
       <DisclaimerBanner compact />
 
       {/* Top Journey Summary Spotlight Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-4">
+      <div className="bg-white text-[#14201f] rounded-xl p-6 sm:p-7 shadow-xs border border-[#dce4e3] space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#dce4e3] pb-4">
           <div>
-            <span className="text-[10px] uppercase font-bold text-sky-400 tracking-wider">Active Patient Case</span>
-            <h2 className="text-xl font-bold text-white">{patientName} (48y)</h2>
+            <span className="text-[10px] uppercase font-bold text-[#0b5f58] tracking-wider">Active Patient Case</span>
+            <h2 className="text-xl font-bold text-[#14201f]">{patientName} (48y)</h2>
           </div>
 
             <div className="flex items-center gap-3 flex-1">
               <div className="flex-1 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Assigned Hospital</span>
+                  <span className="text-[10px] text-[#4b5b5a] uppercase tracking-wider block">Assigned Hospital</span>
                   <button
                     onClick={() => refetch()}
                     disabled={loading}
-                    className="text-[9px] font-medium text-brand-400 hover:text-brand-300 flex items-center gap-1 transition disabled:opacity-50"
+                    className="text-[9px] font-medium text-[#0b5f58] hover:text-[#0f766e] flex items-center gap-1 transition-colors disabled:opacity-50"
                   >
                     <span className={loading ? 'animate-spin' : ''}>↻ Refresh</span>
                   </button>
                 </div>
-                <span className="font-bold text-sm text-brand-300">{displayHospital.name}</span>
+                <span className="font-bold text-sm text-[#0f766e]">{displayHospital.name}</span>
                 {lastUpdated && (
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3 h-3 text-slate-500" />
-                    <span className="text-[9px] text-slate-500">
+                    <Clock className="w-3 h-3 text-[#6b7c7a]" />
+                    <span className="text-[9px] text-[#6b7c7a]">
                       Last updated: {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
                 )}
               </div>
-              <div className="p-3 bg-white/10 rounded-2xl border border-white/15 text-center font-mono min-w-[80px]">
-                <span className="text-[9px] text-slate-400 block">EST. ARRIVAL</span>
-                <span className="text-xl font-extrabold text-emerald-400">{displayHospital.travelTimeMinutes} mins</span>
+              <div className="p-3 bg-[#e6f2f1] rounded-lg border border-[#dce4e3] text-center font-mono min-w-[80px]">
+                <span className="text-[9px] text-[#0b5f58] block">EST. ARRIVAL</span>
+                <span className="text-xl font-extrabold text-[#0f766e]">{displayHospital.travelTimeMinutes} mins</span>
               </div>
             </div>
         </div>
 
         {/* Quick Driver / Paramedic Dispatch Card */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
-          <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-            <span className="text-slate-400 text-[10px] font-medium block">Ambulance Vehicle</span>
-            <div className="font-mono font-bold text-sm text-white">
+          <div className="p-3.5 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-1">
+            <span className="text-[#4b5b5a] text-[10px] font-medium block">Ambulance Vehicle</span>
+            <div className="font-mono font-bold text-sm text-[#14201f]">
               {activeAmbulance?.vehicleNumber || N}
             </div>
-            <span className="text-[10px] text-emerald-400 font-semibold">{activeAmbulance ? 'ALS + Oxygen Ready' : N}</span>
+            <span className="text-[10px] text-[#1b6e3c] font-semibold">{activeAmbulance ? 'ALS + Oxygen Ready' : N}</span>
           </div>
 
-          <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 space-y-1">
-            <span className="text-slate-400 text-[10px] font-medium block">Assigned Paramedic</span>
-            <div className="font-bold text-sm text-white">
+          <div className="p-3.5 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-1">
+            <span className="text-[#4b5b5a] text-[10px] font-medium block">Assigned Paramedic</span>
+            <div className="font-bold text-sm text-[#14201f]">
               {activeAmbulance?.paramedicName || N}
             </div>
-            <span className="text-[10px] text-slate-400">Telemetry feed synced</span>
+            <span className="text-[10px] text-[#4b5b5a]">Telemetry feed synced</span>
           </div>
 
-          <div className="p-3.5 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
+          <div className="p-3.5 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] flex items-center justify-between">
             <div>
-              <span className="text-slate-400 text-[10px] font-medium block">Direct Contact</span>
-              <span className="font-mono font-bold text-xs text-white">{activeAmbulance?.driverPhone || N}</span>
+              <span className="text-[#4b5b5a] text-[10px] font-medium block">Direct Contact</span>
+              <span className="font-mono font-bold text-xs text-[#14201f]">{activeAmbulance?.driverPhone || N}</span>
             </div>
             <a
               href="tel:112"
-              className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition"
+              className="p-2 bg-[#0f766e] hover:bg-[#0b5f58] text-white rounded-lg transition-colors"
               title="Call Ambulance Driver"
             >
               <PhoneCall className="w-4 h-4" />
@@ -211,7 +211,7 @@ export const PatientJourneyPage: React.FC<PatientJourneyPageProps> = ({ navigate
       </div>
 
       {/* 7-Stage Step Timeline */}
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 sm:p-8 space-y-6">
+      <div className="bg-white rounded-xl border border-[#dce4e3] shadow-xs p-6 sm:p-8 space-y-6">
         <h3 className="text-sm font-bold uppercase tracking-wider text-slate-800 border-b border-slate-100 pb-3">
           Emergency Care Progression Timeline
         </h3>

@@ -51,94 +51,94 @@ export const SettingsPage: React.FC = () => {
       </div>
 
       {/* Theme Preference */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          {theme === 'dark' ? <Moon className="w-5 h-5 text-brand-600" /> : <Sun className="w-5 h-5 text-amber-500" />}
+      <div className="bg-white rounded-xl border border-[#dce4e3] shadow-xs p-6 space-y-4">
+        <h3 className="text-base font-bold text-[#14201f] flex items-center gap-2">
+          {theme === 'dark' ? <Moon className="w-5 h-5 text-[#0f766e]" /> : <Sun className="w-5 h-5 text-[#5a3b00]" />}
           Appearance & Theme
         </h3>
-        <p className="text-xs text-slate-500">Choose how MediFlow AI looks on your device.</p>
+        <p className="text-xs text-[#4b5b5a]">Choose how MediFlash looks on your device.</p>
 
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => setTheme('light')}
-            className={`flex items-center gap-3 p-4 rounded-xl border text-left transition ${
+            className={`flex items-center gap-3 p-4 rounded-lg border text-left transition-colors ${
               theme === 'light'
-                ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/20'
-                : 'border-slate-200 hover:border-slate-300'
+                ? 'border-[#0f766e] bg-[#e6f2f1] ring-1 ring-[#0f766e]'
+                : 'border-[#dce4e3] hover:border-slate-300 bg-white'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center shrink-0">
-              <Sun className="w-5 h-5 text-amber-500" />
+            <div className="w-9 h-9 rounded-lg bg-white border border-[#dce4e3] flex items-center justify-center shrink-0">
+              <Sun className="w-4 h-4 text-[#5a3b00]" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-bold text-slate-900">Light</div>
-              <div className="text-[11px] text-slate-500">Bright & clean default</div>
+              <div className="text-sm font-bold text-[#14201f]">Light</div>
+              <div className="text-[11px] text-[#4b5b5a]">Calm neutral healthcare default</div>
             </div>
-            {theme === 'light' && <Check className="w-4 h-4 text-brand-600" />}
+            {theme === 'light' && <Check className="w-4 h-4 text-[#0f766e]" />}
           </button>
 
           <button
             onClick={() => setTheme('dark')}
-            className={`flex items-center gap-3 p-4 rounded-xl border text-left transition ${
+            className={`flex items-center gap-3 p-4 rounded-lg border text-left transition-colors ${
               theme === 'dark'
-                ? 'border-brand-500 bg-brand-50 ring-2 ring-brand-500/20'
-                : 'border-slate-200 hover:border-slate-300'
+                ? 'border-[#0f766e] bg-[#e6f2f1] ring-1 ring-[#0f766e]'
+                : 'border-[#dce4e3] hover:border-slate-300 bg-white'
             }`}
           >
-            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
-              <Moon className="w-5 h-5 text-slate-200" />
+            <div className="w-9 h-9 rounded-lg bg-slate-900 border border-slate-700 flex items-center justify-center shrink-0">
+              <Moon className="w-4 h-4 text-slate-200" />
             </div>
             <div className="flex-1">
-              <div className="text-sm font-bold text-slate-900">Dark</div>
-              <div className="text-[11px] text-slate-500">Easier on the eyes at night</div>
+              <div className="text-sm font-bold text-[#14201f]">Dark</div>
+              <div className="text-[11px] text-[#4b5b5a]">Sleek dark mode</div>
             </div>
-            {theme === 'dark' && <Check className="w-4 h-4 text-brand-600" />}
+            {theme === 'dark' && <Check className="w-4 h-4 text-[#0f766e]" />}
           </button>
         </div>
       </div>
 
       {/* Account Settings */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-4">
-        <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-          <KeyRound className="w-5 h-5 text-brand-600" />
+      <div className="bg-white rounded-xl border border-[#dce4e3] shadow-xs p-6 space-y-4">
+        <h3 className="text-base font-bold text-[#14201f] flex items-center gap-2">
+          <KeyRound className="w-5 h-5 text-[#0f766e]" />
           Account Settings
         </h3>
 
         {/* Change Password */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+        <div className="border border-[#dce4e3] rounded-lg overflow-hidden">
           <button
             onClick={() => { setPasswordOpen(!passwordOpen); setNotifOpen(false); }}
-            className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm transition"
+            className="w-full flex items-center justify-between p-3.5 bg-[#f7f9f9] hover:bg-slate-100 text-sm transition-colors"
           >
-            <span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <KeyRound className="w-4 h-4 text-slate-500" /> Change Password
+            <span className="font-medium text-[#14201f] flex items-center gap-2">
+              <KeyRound className="w-4 h-4 text-[#4b5b5a]" /> Change Password
             </span>
-            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${passwordOpen ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`w-4 h-4 text-[#4b5b5a] transition-transform ${passwordOpen ? 'rotate-90' : ''}`} />
           </button>
           {passwordOpen && (
-            <div className="p-4 space-y-3 bg-white dark:bg-slate-900">
+            <div className="p-4 space-y-3 bg-white">
               <input
                 type="password"
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
                 placeholder="Current password"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]"
               />
               <input
                 type="password"
                 value={newPassword}
                 onChange={e => setNewPassword(e.target.value)}
                 placeholder="New password"
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20"
+                className="w-full px-3.5 py-2 bg-white border border-[#dce4e3] rounded-lg text-sm text-[#14201f] focus:outline-none focus:border-[#0f766e] focus:ring-1 focus:ring-[#0f766e]"
               />
               {passwordMessage && (
-                <p className={`text-xs font-semibold ${passwordMessage.includes('successfully') ? 'text-emerald-600' : 'text-red-600'}`}>
+                <p className={`text-xs font-semibold ${passwordMessage.includes('successfully') ? 'text-[#1b6e3c]' : 'text-[#b42318]'}`}>
                   {passwordMessage}
                 </p>
               )}
               <button
                 onClick={handleChangePassword}
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition"
+                className="px-4 py-2 bg-[#0f766e] hover:bg-[#0b5f58] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors"
               >
                 Update Password
               </button>
@@ -147,18 +147,19 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Notification Preferences */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+        {/* Notification Preferences */}
+        <div className="border border-[#dce4e3] rounded-lg overflow-hidden">
           <button
             onClick={() => { setNotifOpen(!notifOpen); setPasswordOpen(false); }}
-            className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-sm transition"
+            className="w-full flex items-center justify-between p-3.5 bg-[#f7f9f9] hover:bg-slate-100 text-sm transition-colors"
           >
-            <span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Bell className="w-4 h-4 text-slate-500" /> Notification Preferences
+            <span className="font-medium text-[#14201f] flex items-center gap-2">
+              <Bell className="w-4 h-4 text-[#4b5b5a]" /> Notification Preferences
             </span>
-            <ChevronRight className={`w-4 h-4 text-slate-400 transition-transform ${notifOpen ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`w-4 h-4 text-[#4b5b5a] transition-transform ${notifOpen ? 'rotate-90' : ''}`} />
           </button>
           {notifOpen && (
-            <div className="p-4 space-y-3 bg-white dark:bg-slate-900">
+            <div className="p-4 space-y-3 bg-white">
               {([
                 ['preAlerts', 'Emergency Pre-Alerts'],
                 ['queueUpdates', 'Queue Status Updates'],
@@ -166,10 +167,10 @@ export const SettingsPage: React.FC = () => {
                 ['promotional', 'Promotional Updates'],
               ] as const).map(([key, label]) => (
                 <label key={key} className="flex items-center justify-between py-1.5">
-                  <span className="text-sm text-slate-700 dark:text-slate-200">{label}</span>
+                  <span className="text-sm text-[#14201f]">{label}</span>
                   <button
                     onClick={() => setNotifPrefs(prev => ({ ...prev, [key]: !prev[key] }))}
-                    className={`relative w-10 h-5 rounded-full transition ${notifPrefs[key] ? 'bg-brand-600' : 'bg-slate-300'}`}
+                    className={`relative w-10 h-5 rounded-full transition-colors ${notifPrefs[key] ? 'bg-[#0f766e]' : 'bg-slate-300'}`}
                   >
                     <span
                       className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${notifPrefs[key] ? 'left-5' : 'left-0.5'}`}
@@ -182,29 +183,29 @@ export const SettingsPage: React.FC = () => {
         </div>
 
         {/* Privacy */}
-        <button className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm transition">
-          <span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-slate-500" /> Privacy Settings
+        <button className="w-full flex items-center justify-between p-3.5 bg-[#f7f9f9] hover:bg-slate-100 rounded-lg text-sm border border-[#dce4e3] transition-colors">
+          <span className="font-medium text-[#14201f] flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-[#4b5b5a]" /> Privacy Settings
           </span>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
+          <ChevronRight className="w-4 h-4 text-[#4b5b5a]" />
         </button>
 
         {/* Language */}
-        <button className="w-full flex items-center justify-between p-3.5 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-sm transition">
-          <span className="font-medium text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <Globe className="w-4 h-4 text-slate-500" /> Language — English (India)
+        <button className="w-full flex items-center justify-between p-3.5 bg-[#f7f9f9] hover:bg-slate-100 rounded-lg text-sm border border-[#dce4e3] transition-colors">
+          <span className="font-medium text-[#14201f] flex items-center gap-2">
+            <Globe className="w-4 h-4 text-[#4b5b5a]" /> Language — English (India)
           </span>
-          <ChevronRight className="w-4 h-4 text-slate-400" />
+          <ChevronRight className="w-4 h-4 text-[#4b5b5a]" />
         </button>
 
         {/* Sign out / Role */}
-        <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
-          <div className="text-xs text-slate-500 mb-2">
-            Signed in as <span className="font-bold text-slate-700 dark:text-slate-200">{currentUser.name}</span> ({currentUser.role.replace('_', ' ')})
+        <div className="border-t border-[#dce4e3] pt-4">
+          <div className="text-xs text-[#4b5b5a] mb-2">
+            Signed in as <span className="font-bold text-[#14201f]">{currentUser.name}</span> ({currentUser.role.replace('_', ' ')})
           </div>
           <button
             onClick={() => logout()}
-            className="flex items-center gap-2 px-4 py-2 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 text-red-600 rounded-xl text-sm font-semibold transition"
+            className="flex items-center gap-2 px-4 py-2 bg-[#fdecea] hover:bg-red-100 text-[#b42318] rounded-lg text-xs font-semibold transition-colors"
           >
             <LogOut className="w-4 h-4" /> Logout
           </button>

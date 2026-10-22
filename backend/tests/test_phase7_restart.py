@@ -61,7 +61,7 @@ def _free_port() -> int:
 def _env_for(db_path: Path) -> dict:
     env = dict(os.environ)
     env["DATABASE_URL"] = f"sqlite:///{db_path.as_posix()}"
-    env["SECRET_KEY"] = "phase7-restart-test-secret"
+    env["SECRET_KEY"] = "phase7-restart-test-secret-min-32-chars-long!"
     env["DEBUG"] = "false"
     env.setdefault("MEDIFLOW_SEED_PASSWORD", SEED_PASSWORD)
     env.setdefault("MEDIFLOW_SEED_ADMIN_PASSWORD", SEED_ADMIN_PASSWORD)

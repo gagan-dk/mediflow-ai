@@ -72,9 +72,9 @@ export const SystemInsightsPage: React.FC<SystemInsightsPageProps> = ({ navigate
     <div className="max-w-5xl mx-auto space-y-12 pb-16">
       {/* Header */}
       <div className="text-center space-y-3">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-amber-50 border border-amber-200 text-amber-800 rounded-full text-xs font-bold shadow-xs">
-          <Award className="w-3.5 h-3.5 text-amber-600" />
-          <span>Smart India Hackathon • Healthcare Innovation Briefing</span>
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 bg-brand-50 border border-brand-200 text-brand-800 rounded-full text-xs font-bold shadow-xs">
+          <Activity className="w-3.5 h-3.5 text-brand-600" />
+          <span>Clinical Architecture • Emergency Innovation Briefing</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
           System Insights &amp; Algorithmic Architecture
@@ -89,65 +89,65 @@ export const SystemInsightsPage: React.FC<SystemInsightsPageProps> = ({ navigate
       {/* Problem vs Existing Approach vs MediFlow AI */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Problem */}
-        <div className="p-6 bg-red-50/60 rounded-3xl border border-red-200 shadow-xs space-y-3">
-          <div className="flex items-center gap-2 text-red-700 font-bold text-xs uppercase tracking-wider">
-            <AlertTriangle className="w-4 h-4 text-red-600" /> The Problem
+        <div className="p-6 bg-red-50/60 rounded-xl border border-red-200 shadow-xs space-y-3">
+          <div className="flex items-center gap-2 text-[#b42318] font-bold text-xs uppercase tracking-wider">
+            <AlertTriangle className="w-4 h-4 text-[#b42318]" /> The Problem
           </div>
-          <h3 className="font-bold text-slate-900 text-base">Uncoordinated Emergency Inflow</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
+          <h3 className="font-bold text-[#14201f] text-base">Uncoordinated Emergency Inflow</h3>
+          <p className="text-xs text-[#4b5b5a] leading-relaxed">
             Emergency patients and ambulances routinely arrive unannounced at the nearest hospital, only to find the ICU full, oxygen lines saturated, or ER waiting times exceeding 45 minutes.
           </p>
         </div>
 
         {/* Existing Approach */}
-        <div className="p-6 bg-slate-100 rounded-3xl border border-slate-200 shadow-xs space-y-3">
-          <div className="flex items-center gap-2 text-slate-700 font-bold text-xs uppercase tracking-wider">
-            <Layers className="w-4 h-4 text-slate-500" /> Existing Systems
+        <div className="p-6 bg-[#f7f9f9] rounded-xl border border-[#dce4e3] shadow-xs space-y-3">
+          <div className="flex items-center gap-2 text-[#4b5b5a] font-bold text-xs uppercase tracking-wider">
+            <Layers className="w-4 h-4 text-[#4b5b5a]" /> Existing Systems
           </div>
-          <h3 className="font-bold text-slate-900 text-base">Static Distance &amp; Booking</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">
+          <h3 className="font-bold text-[#14201f] text-base">Static Distance &amp; Booking</h3>
+          <p className="text-xs text-[#4b5b5a] leading-relaxed">
             Current systems use straight-line GPS distance or general appointment queues without awareness of live ICU bed availability, specialist rosters, or traffic congestion.
           </p>
         </div>
 
         {/* MediFlow AI Approach */}
-        <div className="p-6 bg-emerald-50/80 rounded-3xl border-2 border-emerald-500 shadow-md space-y-3 relative">
-          <div className="absolute -top-2.5 right-4 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
-            SIH Innovation
+        <div className="p-6 bg-[#e6f2f1] rounded-xl border border-[#0f766e] shadow-xs space-y-3 relative">
+          <div className="absolute -top-2.5 right-4 px-2 py-0.5 bg-[#0f766e] text-white text-[10px] font-bold rounded uppercase tracking-wider">
+            Clinical Engine
           </div>
-          <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs uppercase tracking-wider">
-            <Sparkles className="w-4 h-4 text-emerald-600" /> MediFlow AI Engine
+          <div className="flex items-center gap-2 text-[#0b5f58] font-bold text-xs uppercase tracking-wider">
+            <Sparkles className="w-4 h-4 text-[#0f766e]" /> MediFlash AI Engine
           </div>
-          <h3 className="font-bold text-slate-900 text-base">Intelligent Emergency Coordination</h3>
-          <p className="text-xs text-slate-700 leading-relaxed">
+          <h3 className="font-bold text-[#14201f] text-base">Intelligent Emergency Coordination</h3>
+          <p className="text-xs text-[#4b5b5a] leading-relaxed">
             Fuses patient urgency + required facility matching + real-time ICU/ER capacity + traffic ETA to recommend the optimal hospital while transmitting pre-alerts before arrival.
           </p>
         </div>
       </div>
 
       {/* Architecture Pipeline Visual Flow */}
-      <div className="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800 space-y-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className="bg-white text-[#14201f] rounded-xl p-6 sm:p-8 shadow-xs border border-[#dce4e3] space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#dce4e3] pb-4">
           <div className="flex items-center gap-2">
-            <Cpu className="w-5 h-5 text-brand-400" />
-            <h3 className="font-bold text-sm text-white">
-              MediFlow AI Core Algorithmic Architecture
+            <Cpu className="w-5 h-5 text-[#0f766e]" />
+            <h3 className="font-bold text-sm text-[#14201f]">
+              MediFlash AI Core Algorithmic Architecture
             </h3>
           </div>
-          <span className="text-[10px] text-slate-400 font-mono">End-to-End Coordination Pipeline</span>
+          <span className="text-[10px] text-[#4b5b5a] font-mono">End-to-End Coordination Pipeline</span>
         </div>
 
         {/* Flow Blocks */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center text-xs">
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-            <div className="font-bold text-brand-300">1. Patient Input</div>
-            <div className="text-[10px] text-slate-400">Symptoms &amp; Vitals</div>
+          <div className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-1">
+            <div className="font-bold text-[#0b5f58]">1. Patient Input</div>
+            <div className="text-[10px] text-[#4b5b5a]">Symptoms &amp; Vitals</div>
           </div>
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-            <div className="font-bold text-sky-300">2. AI Prioritize</div>
-            <div className="text-[10px] text-slate-400">ESI Risk Score</div>
+          <div className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-1">
+            <div className="font-bold text-[#0f766e]">2. AI Prioritize</div>
+            <div className="text-[10px] text-[#4b5b5a]">ESI Risk Score</div>
           </div>
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
+          <div className="p-3 bg-[#f7f9f9] rounded-lg border border-[#dce4e3] space-y-1">
             <div className="font-bold text-purple-300">3. Facility Filter</div>
             <div className="text-[10px] text-slate-400">ICU/Oxygen Check</div>
           </div>
@@ -156,7 +156,7 @@ export const SystemInsightsPage: React.FC<SystemInsightsPageProps> = ({ navigate
             <div className="text-[10px] text-slate-400">Travel ETA + Load</div>
           </div>
           <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">
-            <div className="font-bold text-red-300">5. 🚨 Pre-Alert</div>
+            <div className="font-bold text-red-300">5. Pre-Alert</div>
             <div className="text-[10px] text-slate-400">Reserve ICU Bed</div>
           </div>
           <div className="p-3 bg-white/5 rounded-xl border border-white/10 space-y-1">

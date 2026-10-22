@@ -72,9 +72,9 @@ function saveHospitalsToStorage(hospitals: Hospital[]): void {
 
 export function computeOperationalStatus(hospital: Hospital): { status: 'normal' | 'busy' | 'critical'; label: string; loadPercent: number; } {
   const load = hospital.queue?.currentERLoadPercent ?? hospital.currentERLoadPercent ?? 0;
-  if (load > 85) return { status: 'critical', label: '🔴 Critical / Near Capacity', loadPercent: load };
-  if (load >= 60) return { status: 'busy', label: '🟡 Busy', loadPercent: load };
-  return { status: 'normal', label: '🟢 Normal', loadPercent: load };
+  if (load > 85) return { status: 'critical', label: 'Critical / Near Capacity', loadPercent: load };
+  if (load >= 60) return { status: 'busy', label: 'Busy', loadPercent: load };
+  return { status: 'normal', label: 'Normal', loadPercent: load };
 }
 
 class HospitalService {

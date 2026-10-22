@@ -111,7 +111,7 @@ export const ProfilePage: React.FC = () => {
         </div>
         <button
           onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-bold shadow-md transition"
+          className="flex items-center gap-2 px-4 py-2 bg-[#0f766e] hover:bg-[#0b5f58] text-white rounded-lg text-xs font-semibold shadow-2xs transition-colors"
         >
           {isEditing ? (
             <>
@@ -131,18 +131,18 @@ export const ProfilePage: React.FC = () => {
         {/* Left Column: Avatar & Quick Info */}
         <div className="lg:col-span-1 space-y-6">
           {/* Avatar Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 text-center space-y-4">
+          <div className="bg-white rounded-xl border border-[#dce4e3] shadow-xs p-6 text-center space-y-4">
             <div className="relative inline-block">
-              <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-sky-500 flex items-center justify-center text-white text-3xl font-extrabold shadow-lg">
+              <div className="w-20 h-20 rounded-xl bg-[#0f766e] flex items-center justify-center text-white text-2xl font-bold shadow-xs">
                 {currentUser.avatarUrl ? (
-                  <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full rounded-2xl object-cover" />
+                  <img src={currentUser.avatarUrl} alt={currentUser.name} className="w-full h-full rounded-xl object-cover" />
                 ) : (
                   currentUser.avatarInitials || currentUser.name.slice(0, 2).toUpperCase()
                 )}
               </div>
               {isEditing && (
-                <button className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md border border-slate-200 hover:bg-slate-50 transition">
-                  <Camera className="w-4 h-4 text-slate-600" />
+                <button className="absolute bottom-0 right-0 p-1.5 bg-white rounded-full shadow-md border border-[#dce4e3] hover:bg-slate-50 transition">
+                  <Camera className="w-3.5 h-3.5 text-[#4b5b5a]" />
                 </button>
               )}
             </div>
@@ -381,7 +381,7 @@ export const ProfilePage: React.FC = () => {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 mb-3">
-                  MediFlow AI uses your location to find nearby hospitals and provide accurate routing.
+                  MediFlash AI uses your location to find nearby hospitals and provide accurate routing.
                 </p>
                 <button className="flex items-center gap-2 px-3 py-1.5 bg-white hover:bg-slate-50 border border-emerald-200 rounded-lg text-xs font-semibold text-slate-700 transition">
                   <LocateFixed className="w-3.5 h-3.5" />

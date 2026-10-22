@@ -166,12 +166,12 @@ export const SPECIALIZATION_DESCRIPTIONS: Record<string, string> = {
   'Cardiac Electrophysiologist': 'Arrhythmias, ablation & pacemakers'
 };
 
-export const ROOM_STATUS_COLORS: Record<string, { bg: string; text: string; border: string; icon: string }> = {
-  'Available': { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', icon: '🟢' },
-  'Reserved': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', icon: '🟡' },
-  'Occupied': { bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200', icon: '🔴' },
-  'Cleaning': { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', icon: '🔵' },
-  'Maintenance': { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', icon: '⚫' }
+export const ROOM_STATUS_COLORS: Record<string, { bg: string; text: string; border: string; dot: string; icon?: string }> = {
+  'Available': { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  'Reserved': { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500' },
+  'Occupied': { bg: 'bg-red-50', text: 'text-red-800', border: 'border-red-200', dot: 'bg-red-500' },
+  'Cleaning': { bg: 'bg-blue-50', text: 'text-blue-800', border: 'border-blue-200', dot: 'bg-blue-500' },
+  'Maintenance': { bg: 'bg-slate-50', text: 'text-slate-800', border: 'border-slate-200', dot: 'bg-slate-500' }
 };
 
 export const NOT_AVAILABLE_MESSAGE = 'Operational data not available';

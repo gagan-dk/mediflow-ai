@@ -33,7 +33,7 @@ export const LocationPermissionModal: React.FC<LocationPermissionModalProps> = (
         {/* Body */}
         <div className="p-6 space-y-5">
           <p className="text-sm text-slate-600 leading-relaxed">
-            MediFlow AI uses your device location to:
+            MediFlash AI uses your device location to:
           </p>
 
           <div className="space-y-3">

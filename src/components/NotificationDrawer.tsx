@@ -109,7 +109,7 @@ export const NotificationDrawer: React.FC<NotificationDrawerProps> = ({ isOpen, 
 
           {/* Footer note */}
           <div className="p-3 bg-slate-50 border-t border-slate-200 text-center text-[10px] text-slate-400">
-            Real-time event synchronization active • MediFlow AI Protocol
+            Real-time event synchronization active • MediFlash AI Protocol
           </div>
         </div>
       </div>

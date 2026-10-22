@@ -6,7 +6,7 @@ Nothing here is hard-coded or committed to source control.
 
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -45,6 +45,17 @@ class Settings(BaseSettings):
     # Security (overridden via .env in production)
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 60 * 8
+
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_auth: str = "5/minute"
+
+    @field_validator("secret_key")
+    @classmethod
+    def validate_secret_key(cls, v: str) -> str:
+        if v != "change-me-in-production" and len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long for production security.")
+        return v
 
 
 @lru_cache

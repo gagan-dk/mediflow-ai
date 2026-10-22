@@ -16,20 +16,20 @@ export const PreAlertBanner: React.FC = () => {
 
   return (
     <>
-      <div className={`w-full px-4 py-2.5 text-white shadow-md transition-all ${
+      <div className={`w-full px-4 py-2.5 text-white shadow-sm transition-all ${
         isCritical 
-          ? 'bg-gradient-to-r from-red-600 via-rose-600 to-red-700 animate-pulse-slow' 
-          : 'bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700'
+          ? 'bg-red-700' 
+          : 'bg-amber-700'
       }`}>
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-1.5 bg-white/20 rounded-lg animate-ping-slow">
+            <div className="p-1.5 bg-white/20 rounded-lg">
               <ShieldAlert className="w-5 h-5 text-white" />
             </div>
             <div className="text-xs">
               <div className="flex items-center gap-2 font-bold tracking-wide">
-                <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] uppercase">
-                  🚨 PRE-ALERT: {activePreAlert.severity}
+                <span className="bg-white/20 px-2 py-0.5 rounded text-[10px] uppercase font-mono">
+                  PRE-ALERT: {activePreAlert.severity}
                 </span>
                 <span>{activePreAlert.patientName} ({activePreAlert.age}y)</span>
                 <span className="hidden sm:inline text-white/80">• {activePreAlert.destinationHospitalName}</span>
