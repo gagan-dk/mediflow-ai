@@ -1,0 +1,132 @@
+================================================================================
+                           MEDIFLOW AI - PLATFORM FEATURES
+                    Next-Generation Emergency Healthcare System
+================================================================================
+
+MediFlow AI is an intelligent healthcare coordination platform designed to bridge 
+patients, emergency responders, and hospital command centers in real time. It 
+streamlines triage, ambulance dispatch, facility capacity matching, and emergency 
+admissions.
+
+--------------------------------------------------------------------------------
+1. MULTI-ROLE AUTHENTICATION & ACCESS CONTROL
+--------------------------------------------------------------------------------
+• 3 Tailored User Roles:
+  - Patient / Citizen: Emergency assistance, hospital discovery, ambulance tracking.
+  - Hospital Staff / Doctor / Nurse: Command center, live triage queue, fleet management.
+  - System Administrator: Platform oversight, analytics, and hospital onboarding.
+• Sign Up & Account Creation:
+  - Register as Patient, Hospital Staff, or Administrator.
+  - Capture hospital affiliation, credentials, license IDs, and contact info.
+  - Persistent account storage across user sessions.
+• Seamless Role Switching & User Profiles:
+  - Edit personal health records (Blood group, allergies, chronic conditions, emergency contacts).
+  - Quick role toggling for testing and administrative previews.
+
+--------------------------------------------------------------------------------
+2. AI-POWERED EMERGENCY ASSESSMENT & SMART TRIAGE
+--------------------------------------------------------------------------------
+• Interactive Triage Assessment:
+  - Step-by-step clinical questionnaire assessing chief complaints, vitals, pain level.
+  - Emergency severity score calculation (Immediate, Urgent, Less Urgent, Routine).
+• Automated Pre-Arrival Clinical Summary:
+  - AI-generated clinical handover report sent ahead of time to the receiving ER.
+  - Highlights red-flag symptoms (chest pain, stroke signs, severe trauma).
+• Immediate Action & First-Aid Guidance:
+  - Step-by-step first-aid protocols displayed while awaiting transport or arriving at ER.
+
+--------------------------------------------------------------------------------
+3. SMART HOSPITAL FINDER & CAPACITY MATCHING
+--------------------------------------------------------------------------------
+• Real-Time Location & Proximity Search:
+  - Calculates distance and travel ETA to nearby emergency departments.
+• Live Facility Capacity & Availability:
+  - Live available beds counter: ICU beds, Trauma bays, and General ward beds.
+  - Real-time estimated Emergency Department waiting times.
+• Advanced Speciality Filtering:
+  - Filter hospitals by capabilities: Cath Lab (Heart Attack), Level 1 Trauma Center,
+    Comprehensive Stroke Unit, Pediatric ICU (PICU), and Burn Care Unit.
+• Interactive Map:
+  - Visual map showing hospital locations, route distances, and status pins.
+
+--------------------------------------------------------------------------------
+4. HOSPITAL COMMAND CENTER & EMERGENCY ADMISSION
+--------------------------------------------------------------------------------
+• Real-Time Hospital Command Dashboard:
+  - Centralized operations center for clinical coordinators and ER charge nurses.
+• Live Incoming Emergency Pre-Alerts:
+  - Audio and visual alerts when an incoming emergency case is heading toward the hospital.
+  - Full pre-arrival telemetry, patient vitals, and ETA countdown.
+  - Single-click Accept or Divert controls.
+• Automated Diversion & Rerouting Protocol:
+  - If a hospital's ICU or ER is at 100% capacity, system alerts the patient/ambulance 
+    and suggests nearest alternative capable facilities automatically.
+• Live Queue Management (Red / Yellow / Green Priority):
+  - Track admitted, waiting, and triaged patients with live status changes.
+
+--------------------------------------------------------------------------------
+5. HOSPITAL RESOURCE & OPERATIONS MANAGEMENT
+--------------------------------------------------------------------------------
+• Doctor & Specialist Roster:
+  - Add, edit, and track on-duty doctors, specialists, shifts, and contact details.
+  - Status indicators (On Duty, In Surgery, On Call, Off Duty).
+• Room & Bed Inventory Management:
+  - Real-time tracking of beds across ICU, Trauma, General, and Pediatric wards.
+  - Manage bed states: Occupied, Available, Cleaning / Sanitizing, Maintenance.
+• Live Operational Data Editor:
+  - Instant adjustments to hospital bed counts, staffing levels, and department statuses.
+
+--------------------------------------------------------------------------------
+6. EMERGENCY TRANSPORT & AMBULANCE FLEET (MEDICATIONS / FLEET PAGE)
+--------------------------------------------------------------------------------
+• Hospital Staff Fleet Registration:
+  - Register ambulances with Vehicle Number (e.g., KA-01-E-1002).
+  - Ambulance classification: Basic Life Support (BLS), Advanced Life Support (ALS), 
+    or Advanced Cardiac Life (ACL).
+  - Assign Driver Name, Direct Driver Phone Number (Tap-to-Call), and Paramedic Name.
+  - Real-time status toggle: Available, Dispatched, En Route, At Hospital, Unavailable.
+• Live Driver & Vehicle Transparency for Patients:
+  - Patients can see exact vehicle numbers, driver details, and contact numbers.
+  - One-tap phone link to call the ambulance driver directly during emergencies.
+• Live GPS Telemetry Simulation:
+  - Real-time vehicle positions, speed, route coordinates, and arrival ETA.
+
+--------------------------------------------------------------------------------
+7. LIVE PATIENT JOURNEY TRACKER
+--------------------------------------------------------------------------------
+• Complete Turn-by-Turn Timeline:
+  - Emergency Dispatched -> En Route -> Arrived at Scene -> Transporting -> 
+    Arrived at ER -> Admitted.
+• Live Countdown ETA:
+  - Real-time minutes remaining until ambulance arrival.
+• Pre-Arrival Notification Status:
+  - Visual indicator showing receiving hospital has accepted the incoming patient.
+
+--------------------------------------------------------------------------------
+8. "ASK MEDIFLASH" AI MEDICAL ASSISTANT
+--------------------------------------------------------------------------------
+• 24/7 AI Health Chatbot:
+  - Instant answers to first-aid questions, triage guidance, and home care remedies.
+  - Safe medical disclaimers and emergency detection.
+  - Quick-action emergency button to call local emergency services (112 / 911 / 108).
+
+--------------------------------------------------------------------------------
+9. SYSTEM ANALYTICS & INSIGHTS
+--------------------------------------------------------------------------------
+• Hospital Operational Metrics:
+  - Average patient wait times, triage volume trends, bed turnover rates.
+• Emergency Response Statistics:
+  - Ambulance dispatch times, route efficiency, and handover duration.
+
+--------------------------------------------------------------------------------
+10. PRIVACY, SECURITY & USER EXPERIENCE
+--------------------------------------------------------------------------------
+• HIPAA & Data Protection Guidelines:
+  - Built with patient privacy protocols and secure role-based data partitioning.
+• Responsive Modern UI:
+  - Clean medical aesthetic with Tailwind CSS styling, dark/light accents, micro-animations,
+    and mobile-friendly layouts for smartphones, tablets, and desktop workstations.
+
+================================================================================
+Generated for: MediFlow AI Platform
+================================================================================
